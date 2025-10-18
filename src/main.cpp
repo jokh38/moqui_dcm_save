@@ -1,14 +1,17 @@
 #include <iostream>
-#include "moqui_dcm_save/library.hpp"
+
+#include "library.h"
 
 int main() {
-    std::cout << "Hello, moqui_dcm_save!" << std::endl;
+    std::cout << "Moqui DCM Save Application" << std::endl;
+    std::cout << "==========================" << std::endl;
 
-    moqui_dcm_save::Library lib;
-    lib.hello();
+    // Test our library functions
+    int a = 5, b = 3;
+    std::cout << "Testing add(" << a << ", " << b << ") = " << add(a, b) << std::endl;
+    std::cout << "Testing multiply(" << a << ", " << b << ") = " << multiply(a, b) << std::endl;
 
-    int result = lib.add(5, 3);
-    std::cout << "5 + 3 = " << result << std::endl;
+    greet("User");
 
     return 0;
 }
