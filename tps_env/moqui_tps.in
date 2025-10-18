@@ -5,7 +5,7 @@ TotalThreads -1 #(Integer, use negative value for using optimized number of thre
 MaxHistoriesPerBatch 10000000
 Verbosity 0
 
-ParentDir ../data/Outputs_csv/18977768
+ParentDir ../data/CSV/spotplan
 DicomDir plan
 logFilePath log
 
@@ -33,11 +33,11 @@ ROIName External
 SourceType FluenceMap
 SimulationType perBeam
 BeamNumbers 1
-ParticlesPerHistory 0.1
+ParticlesPerHistory 0.001
 
 ## Not implemented yet
 ScoreToCTGrid true
 
-OutputDir ../data/Dose_raw/18977768/
+OutputDir ../data/Output/spotplan
 OutputFormat raw
 OverwriteResults true

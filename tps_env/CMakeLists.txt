@@ -1,24 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
 project(env LANGUAGES CXX CUDA)
 
-# RTX A5000 = sm_86
-set(CMAKE_CUDA_ARCHITECTURES 86)
+# RTX 2080 = sm_75
+set(CMAKE_CUDA_ARCHITECTURES 75)
 # 런타임을 동적 링크로 (ldd에 libcudart가 보이도록)
 set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
 
-set(GPU ON)
+option(GPU "Use GPU acceleration" ON)
 
 # The extension of the main code should be cpp to compile it using g++ for CPU
 # version and using nvcc for GPU version. It will not be compiled using g++ if
 # the extension is cu
 
-# setting Cuda 11.7
+# setting Cuda 12.1
 set(CMAKE_CUDA_COMPILER
-    /usr/local/cuda-11.7/bin/nvcc
-    CACHE FILEPATH "CUDA 11.7 nvcc" FORCE)
+    /usr/local/cuda-12.1/bin/nvcc
+    CACHE FILEPATH "CUDA 12.1 nvcc" FORCE)
 set(CUDATOOLkit_ROOT
-    /usr/local/cuda-11.7
-    CACHE PATH "CUDA 11.7 root" FORCE)
+    /usr/local/cuda-12.1
+    CACHE PATH "CUDA 12.1 root" FORCE)
 add_executable(tps_env tps_env.cpp)
 
 if(GPU)
@@ -50,16 +50,33 @@ include_directories(${PROJECT_SOURCE_DIR} ${GDCM_INCLUDE_DIRS} ../ ../moqui
 
 link_directories(${GDCM_DIR})
 
-target_link_libraries(
-  tps_env
-  PRIVATE CUDA::cudart
-          ${COREFOUNDATION_LIBRARY}
-          gdcmCommon
-          gdcmDSED
-          gdcmMEXD
-          gdcmjpeg12
-          gdcmjpeg8
-          gdcmDICT
-          gdcmIOD
-          gdcmMSFF
-          gdcmjpeg16)
+if(GPU)
+  target_link_libraries(
+    tps_env
+    PRIVATE CUDA::cudart
+            ${COREFOUNDATION_LIBRARY}
+            gdcmCommon
+            gdcmDSED
+            gdcmMEXD
+            gdcmjpeg12
+            gdcmjpeg8
+            gdcmDICT
+            gdcmIOD
+            gdcmMSFF
+            gdcmjpeg16
+            z)
+else()
+  target_link_libraries(
+    tps_env
+    PRIVATE ${COREFOUNDATION_LIBRARY}
+            gdcmCommon
+            gdcmDSED
+            gdcmMEXD
+            gdcmjpeg12
+            gdcmjpeg8
+            gdcmDICT
+            gdcmIOD
+            gdcmMSFF
+            gdcmjpeg16
+            z)
+endif()
