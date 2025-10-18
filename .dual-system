@@ -1,0 +1,24 @@
+# Dual System Repository Marker
+
+This file marks this repository as a dual-system containing:
+1. Moqui Domain Project (moqui/)
+2. CICD Template System (templates/)
+
+This marker helps the project type detection script correctly identify
+this repository as containing both systems and set the appropriate AI context.
+
+## Project Structure
+- moqui/: Monte Carlo dose calculation domain code
+- templates/: Generic project templates for C++ and Python
+- scripts/: Project type detection and template validation scripts
+- .github/claude/contexts/: AI context separation for different project types
+- .serena/memories/: AI memory system separation
+
+## AI Context
+- Type: dual-system
+- Context: development-environment
+- Build System: mixed
+- Language: mixed
+
+Created: 2025-10-18
+Purpose: Phase 0 Implementation - Codebase Separation and Architecture
