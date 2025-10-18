@@ -3,10 +3,10 @@
 
 #include <moqui/base/mqi_interaction.hpp>
 
-namespace mqi
-{
+namespace mqi {
 
-///< Data table (from Geant4 TestEm0. Ei = 0.1 * MeV,  Ef = 299.6 MeV, dE = 0.5 MeV, Te_cut = 0.1 mm (85.1138 keV)
+///< Data table (from Geant4 TestEm0. Ei = 0.1 * MeV,  Ef = 299.6 MeV, dE = 0.5 MeV, Te_cut = 0.1 mm
+///< (85.1138 keV)
 ///<  - Cross-section (per )  mm2/g
 CUDA_CONSTANT const float cs_p_ion_table[600] = {
     0,       0,       0,       0,       0,       0,       0,       0,       0,       0,
@@ -68,8 +68,7 @@ CUDA_CONSTANT const float cs_p_ion_table[600] = {
     190.505, 190.334, 190.164, 189.994, 189.825, 189.656, 189.488, 189.32,  189.153, 188.986,
     188.82,  188.654, 188.489, 188.324, 188.16,  187.996, 187.833, 187.671, 187.508, 187.347,
     187.185, 187.025, 186.864, 186.705, 186.545, 186.386, 186.228, 186.07,  185.913, 185.756,
-    185.599, 185.443, 185.288, 185.133, 184.978, 184.824, 184.67,  184.517, 184.364, 184.211
-};
+    185.599, 185.443, 185.288, 185.133, 184.978, 184.824, 184.67,  184.517, 184.364, 184.211};
 ////Total stopping power (I=75 eV)  from Geant4
 CUDA_CONSTANT const float restricted_stopping_power_table[600] = {
     96.14890, 37.78070, 25.01300, 19.19030, 15.72410, 13.29680, 11.59950, 10.30940, 9.32706,
@@ -138,8 +137,7 @@ CUDA_CONSTANT const float restricted_stopping_power_table[600] = {
     0.32695,  0.32659,  0.32624,  0.32589,  0.32555,  0.32520,  0.32486,  0.32451,  0.32417,
     0.32383,  0.32349,  0.32315,  0.32281,  0.32247,  0.32214,  0.32180,  0.32147,  0.32114,
     0.32080,  0.32047,  0.32014,  0.31982,  0.31949,  0.31916,  0.31884,  0.31851,  0.31819,
-    0.31787,  0.31755,  0.31723,  0.31691,  0.31660,  0.31628
-};
+    0.31787,  0.31755,  0.31723,  0.31691,  0.31660,  0.31628};
 
 ////Total stopping power (I=75 eV)  from Geant4
 CUDA_CONSTANT const float range_steps[600] = {
@@ -217,50 +215,47 @@ CUDA_CONSTANT const float range_steps[600] = {
     508.912000, 510.444000, 511.977000, 513.512000, 515.049000, 516.587000, 518.127000, 519.669000,
     521.212000, 522.757000, 524.303000, 525.851000, 527.401000, 528.952000, 530.505000, 532.060000,
     533.616000, 535.174000, 536.733000, 538.294000, 539.857000, 541.421000, 542.987000, 544.554000,
-    546.123000, 547.694000, 549.266000, 550.840000, 552.415000, 553.992000, 555.570000, 557.151000
-};
+    546.123000, 547.694000, 549.266000, 550.840000, 552.415000, 553.992000, 555.570000, 557.151000};
 
 ///< delta_ionization
 ///< analytical model
-template<typename R>
-class p_ionization_tabulated : public interaction<R, mqi::PROTON>
-{
+template <typename R>
+class p_ionization_tabulated : public interaction<R, mqi::PROTON> {
     ///< constant value to calculate scattering angle
-    const R Es = 13.9;   // I 75 eV
+    const R Es = 13.9;  // I 75 eV
     ///< Cross-section & restricted stopping power
     ///< Table's energy step: Ei, Ef, dE
-    const R  Ei;
-    const R  Ef;
-    const R  E_step;
+    const R Ei;
+    const R Ef;
+    const R E_step;
     const R* cs_table;
     const R* pw_table;
 
     ///< Energy and range table
     const R* r_steps;
 
-public:
+   public:
     CUDA_HOST_DEVICE
-    p_ionization_tabulated(R m, R M, R s, const R* p, const R* q, const R* r) :
-        Ei(m), Ef(M), E_step(s), cs_table(p), pw_table(q), r_steps(r) {}
+    p_ionization_tabulated(R m, R M, R s, const R* p, const R* q, const R* r)
+        : Ei(m), Ef(M), E_step(s), cs_table(p), pw_table(q), r_steps(r) {}
 
     CUDA_HOST_DEVICE
     ~p_ionization_tabulated() {
         cs_table = nullptr;
         pw_table = nullptr;
-        r_steps  = nullptr;
+        r_steps = nullptr;
     }
 
     ///< Cross-section
     CUDA_HOST_DEVICE
-    virtual R
-    cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
+    virtual R cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
         R cs = 0;
         if (rel.Ek >= Ei && rel.Ek <= Ef) {
             uint16_t idx0 = uint16_t((rel.Ek - Ei) / this->E_step);
             uint16_t idx1 = idx0 + 1;
-            R        x0   = this->Ei + idx0 * this->E_step;
-            R        x1   = x0 + this->E_step;
-            cs            = mqi::intpl1d<R>(rel.Ek, x0, x1, cs_table[idx0], cs_table[idx1]);
+            R x0 = this->Ei + idx0 * this->E_step;
+            R x1 = x0 + this->E_step;
+            cs = mqi::intpl1d<R>(rel.Ek, x0, x1, cs_table[idx0], cs_table[idx1]);
         }
         cs *= mat.rho_mass;
         return cs;
@@ -268,15 +263,14 @@ public:
 
     ///< dEdx
     CUDA_HOST_DEVICE
-    virtual inline R
-    dEdx(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
+    virtual inline R dEdx(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
         R pw = 0;
         if (rel.Ek >= Ei && rel.Ek <= Ef) {
             uint16_t idx0 = uint16_t((rel.Ek - Ei) / this->E_step);
             uint16_t idx1 = idx0 + 1;
-            R        x0   = Ei + idx0 * this->E_step;
-            R        x1   = x0 + this->E_step;
-            pw            = mqi::intpl1d<R>(rel.Ek, x0, x1, pw_table[idx0], pw_table[idx1]);
+            R x0 = Ei + idx0 * this->E_step;
+            R x1 = x0 + this->E_step;
+            pw = mqi::intpl1d<R>(rel.Ek, x0, x1, pw_table[idx0], pw_table[idx1]);
         } else if (rel.Ek < Ei && rel.Ek > 0) {
             pw = pw_table[0];
             assert(pw >= 0);
@@ -286,51 +280,51 @@ public:
 
     ///< sample delta-energy
     CUDA_HOST_DEVICE
-    inline R
-    sample_delta_energy(const R Te_max, const mqi_rng* rng) {
+    inline R sample_delta_energy(const R Te_max, const mqi_rng* rng) {
         R eta = mqi_uniform<R>(rng);
         return Te_max * this->T_cut / ((1.0 - eta) * Te_max + eta * this->T_cut);
     }
 
     ///< Energy loss (positive)
     CUDA_HOST_DEVICE
-    virtual inline R
-    energy_loss(const relativistic_quantities<R>& rel,
-                material_t<R>&                    mat,
-                const R                           step_length,
-                mqi_rng*                          rng) {
+    virtual inline R energy_loss(const relativistic_quantities<R>& rel, material_t<R>& mat,
+                                 const R step_length, mqi_rng* rng) {
         ///< n is left index of energy & range steps table
-        R length_in_water = step_length * mat.stopping_power_ratio(rel.Ek) * mat.rho_mass / this->units.water_density;
-        //R length_in_water = step_length * 1 * mat.rho_mass / this->units.water_density;
-        uint16_t n  = uint16_t((rel.Ek - this->Ei) / this->E_step);
-        R        x0 = this->Ei + n * this->E_step;
-        R        x1 = x0 + this->E_step;
-        if (x0 > rel.Ek) n -= 1;
-        if (x1 < rel.Ek) n += 1;
+        R length_in_water = step_length * mat.stopping_power_ratio(rel.Ek) * mat.rho_mass /
+                            this->units.water_density;
+        // R length_in_water = step_length * 1 * mat.rho_mass / this->units.water_density;
+        uint16_t n = uint16_t((rel.Ek - this->Ei) / this->E_step);
+        R x0 = this->Ei + n * this->E_step;
+        R x1 = x0 + this->E_step;
+        if (x0 > rel.Ek)
+            n -= 1;
+        if (x1 < rel.Ek)
+            n += 1;
 
         R r = mqi::intpl1d(rel.Ek, x0, x1, r_steps[n], r_steps[n + 1]);
-        if (r < length_in_water) return rel.Ek;   //< maximum energy loss
-        r -= length_in_water;                     //< update residual range
+        if (r < length_in_water)
+            return rel.Ek;     //< maximum energy loss
+        r -= length_in_water;  //< update residual range
         ///< find new 'n' for new energy ranges for interpolation
         do {
-            if (r >= r_steps[n]) break;
+            if (r >= r_steps[n])
+                break;
         } while (--n > 0);
-        x0        = this->Ei + n * this->E_step;
-        x1        = x0 + this->E_step;
+        x0 = this->Ei + n * this->E_step;
+        x1 = x0 + this->E_step;
         R dE_mean = rel.Ek - mqi::intpl1d(r, r_steps[n], r_steps[n + 1], x0, x1);
-        R dE_var  = this->energy_straggling(rel, mat, length_in_water);
-        R ret     = mqi::mqi_normal(rng, dE_mean, mqi::mqi_sqrt(dE_var));
-        if (ret < 0) ret *= -1.0;
+        R dE_var = this->energy_straggling(rel, mat, length_in_water);
+        R ret = mqi::mqi_normal(rng, dE_mean, mqi::mqi_sqrt(dE_var));
+        if (ret < 0)
+            ret *= -1.0;
         return ret;
     }
 
     ///< energy_straggling variance
     CUDA_HOST_DEVICE
-    inline R
-    energy_straggling(const relativistic_quantities<R>& rel,
-                      const material_t<R>&              mat,
-                      const R                           step_length) {
-        R Te   = (rel.Te_max >= 0.08511) ? 0.08511 : rel.Te_max;
+    inline R energy_straggling(const relativistic_quantities<R>& rel, const material_t<R>& mat,
+                               const R step_length) {
+        R Te = (rel.Te_max >= 0.08511) ? 0.08511 : rel.Te_max;
         R O_sq = mat.dedx_term0() * mat.rho_mass / this->units.water_density * step_length;
         O_sq *= Te / rel.beta_sq * (1.0 - 0.5 * rel.beta_sq);
         return O_sq;
@@ -341,10 +335,9 @@ public:
     /// rho_mass (g/mm^3)
     /// From M. Fippel and M. Soukup, Med. Phys. Vol. 31, No. 8, 2004
     CUDA_HOST_DEVICE
-    virtual R
-    radiation_length(R density) {
+    virtual R radiation_length(R density) {
         R radiation_length_mat = 0.0;
-        R f                    = 0.0;
+        R f = 0.0;
         density *= 1000.0;
 
         //// Fippel
@@ -356,27 +349,20 @@ public:
             f = 1.19 + 0.44 * mqi::mqi_ln(density - 0.44);
         }
 
-        radiation_length_mat =
-          (this->units.water_density * this->units.radiation_length_water) / (density * 0.001 * f);
+        radiation_length_mat = (this->units.water_density * this->units.radiation_length_water) /
+                               (density * 0.001 * f);
         return radiation_length_mat;
     }
 
     ///< CSDA method is special to p_ionization
     CUDA_HOST_DEVICE
-    virtual void
-    along_step(track_t<R>&       trk,
-               track_stack_t<R>& stk,
-               mqi_rng*          rng,
-               const R           len,
-               material_t<R>&    mat) {
+    virtual void along_step(track_t<R>& trk, track_stack_t<R>& stk, mqi_rng* rng, const R len,
+                            material_t<R>& mat) {
         mqi::relativistic_quantities<R> rel(trk.vtx0.ke, this->units.Mp);
         ///< CSDA energy loss
 #ifdef DEBUG
-        printf("len %f rsp %f density %f water density %f length in water %f mm\n",
-               len,
-               mat.stopping_power_ratio(rel.Ek),
-               mat.rho_mass,
-               this->units.water_density,
+        printf("len %f rsp %f density %f water density %f length in water %f mm\n", len,
+               mat.stopping_power_ratio(rel.Ek), mat.rho_mass, this->units.water_density,
                len * mat.stopping_power_ratio(rel.Ek) * mat.rho_mass / this->units.water_density);
 #endif
         R dE = this->energy_loss(rel, mat, len, rng);
@@ -388,35 +374,29 @@ public:
         }
         assert(dE * r >= 0);
         ///< Multiple Coulomb SCattering (MSC)
-        R P                    = rel.momentum();
+        R P = rel.momentum();
         R radiation_length_mat = this->radiation_length(mat.rho_mass);
 
         R th_sq = ((this->Es / P) * (this->Es / P) / rel.beta_sq) * len / radiation_length_mat;
-        R th    = mqi::mqi_sqrt(th_sq);
-        th      = mqi::mqi_normal<R>(rng, 0, mqi::mqi_sqrt(2.0f) * th);
-        if (th < 0) th *= -1.0;
+        R th = mqi::mqi_sqrt(th_sq);
+        th = mqi::mqi_normal<R>(rng, 0, mqi::mqi_sqrt(2.0f) * th);
+        if (th < 0)
+            th *= -1.0;
         R phi = 2.0 * M_PI * mqi::mqi_uniform<R>(rng);
 #if !defined(__CUDACC__)
         if (std::isnan(th) || std::isnan(phi) || std::isinf(th) || std::isinf(phi))
-            printf("p ion1 dE %f ke %f Es %f P %f len %f th_sq %f th %f phi %f\n",
-                   dE,
-                   trk.vtx0.ke,
-                   this->Es,
-                   P,
-                   len,
-                   th_sq,
-                   th,
-                   phi);
-        if (std::isnan(r)) printf("p ion1 r %f\n", r);
+            printf("p ion1 dE %f ke %f Es %f P %f len %f th_sq %f th %f phi %f\n", dE, trk.vtx0.ke,
+                   this->Es, P, len, th_sq, th, phi);
+        if (std::isnan(r))
+            printf("p ion1 r %f\n", r);
 #endif
         trk.update_post_vertex_direction(th, phi);
         if (mqi::mqi_abs(trk.vtx0.dir.dot(trk.vtx1.dir) /
-                           (trk.vtx0.dir.norm() * trk.vtx1.dir.norm()) -
+                             (trk.vtx0.dir.norm() * trk.vtx1.dir.norm()) -
                          mqi::mqi_cos(th)) < 1e-3) {
         } else {
 #ifdef DEBUG
-            printf("cos(th) %f dot %f\n",
-                   mqi::mqi_cos(th),
+            printf("cos(th) %f dot %f\n", mqi::mqi_cos(th),
                    trk.vtx0.dir.dot(trk.vtx1.dir) / (trk.vtx0.dir.norm() * trk.vtx1.dir.norm()));
             printf("vtx0 ");
             trk.vtx0.dir.dump();
@@ -425,7 +405,7 @@ public:
 #endif
         }
         assert(mqi::mqi_abs(trk.vtx0.dir.dot(trk.vtx1.dir) /
-                              (trk.vtx0.dir.norm() * trk.vtx1.dir.norm()) -
+                                (trk.vtx0.dir.norm() * trk.vtx1.dir.norm()) -
                             mqi::mqi_cos(th)) < 1e-3);
         trk.deposit(dE * r);
         trk.update_post_vertex_position(r * len);
@@ -435,14 +415,9 @@ public:
     ///< DoIt method to update track's KE, pos, dir, dE, status
     ///< compute energy loss, vertex, secondaries
     CUDA_HOST_DEVICE
-    virtual void
-    post_step(track_t<R>&       trk,
-              track_stack_t<R>& stk,
-              mqi_rng*          rng,
-              const R           len,
-              material_t<R>&    mat,
-              bool              score_local_deposit) {
-        //This method in p_ion should get called after CSDA
+    virtual void post_step(track_t<R>& trk, track_stack_t<R>& stk, mqi_rng* rng, const R len,
+                           material_t<R>& mat, bool score_local_deposit) {
+        // This method in p_ion should get called after CSDA
         mqi::relativistic_quantities<R> rel(trk.vtx1.ke, this->units.Mp);
 
         ///< Delta generation (local absorb)
@@ -450,7 +425,7 @@ public:
 
         /// Sampling and Rejection from Geant4
         while (true) {
-            n  = mqi::mqi_uniform<R>(rng);
+            n = mqi::mqi_uniform<R>(rng);
             Te = this->T_cut * rel.Te_max;
             Te /= ((1.0 - n) * rel.Te_max + n * this->T_cut);
             if (mqi::mqi_uniform<R>(rng) <
@@ -464,18 +439,18 @@ public:
         /// Remove in release
 #ifdef __PHYSICS_DEBUG__
         track_t<R> daughter(trk);
-        daughter.dE       = Te;
-        daughter.primary  = false;
-        daughter.process  = mqi::D_ION;
-        daughter.vtx0.ke  = 0;
-        daughter.vtx1.ke  = 0;
-        daughter.status   = CREATED;
+        daughter.dE = Te;
+        daughter.primary = false;
+        daughter.process = mqi::D_ION;
+        daughter.vtx0.ke = 0;
+        daughter.vtx1.ke = 0;
+        daughter.status = CREATED;
         daughter.vtx0.pos = trk.c_node->geo->rotation_matrix_fwd *
-                              (daughter.vtx0.pos - trk.c_node->geo->translation_vector) +
+                                (daughter.vtx0.pos - trk.c_node->geo->translation_vector) +
                             trk.c_node->geo->translation_vector;
         daughter.vtx0.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx0.dir;
         daughter.vtx1.pos = trk.c_node->geo->rotation_matrix_fwd *
-                              (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
+                                (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
                             trk.c_node->geo->translation_vector;
         daughter.vtx1.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx1.dir;
         stk.push_secondary(daughter);
@@ -488,17 +463,18 @@ public:
     ///< DoIt method to update track's KE, pos, dir, dE, status
     ///< compute energy loss, vertex, secondaries
     CUDA_HOST_DEVICE
-    virtual void
-    last_step(track_t<R>& trk, material_t<R>& mat) {
+    virtual void last_step(track_t<R>& trk, material_t<R>& mat) {
         mqi::relativistic_quantities<R> rel(trk.vtx0.ke, this->units.Mp);
-        R                               length_in_water = 0;
-        if (trk.dE > 0) length_in_water = -trk.dE / this->dEdx(rel, mat);
-        R step_length = length_in_water * this->units.water_density / (mat.stopping_power_ratio(trk.vtx0.ke) * mat.rho_mass);
-        //R step_length = length_in_water * this->units.water_density / (1 * mat.rho_mass);
+        R length_in_water = 0;
+        if (trk.dE > 0)
+            length_in_water = -trk.dE / this->dEdx(rel, mat);
+        R step_length = length_in_water * this->units.water_density /
+                        (mat.stopping_power_ratio(trk.vtx0.ke) * mat.rho_mass);
+        // R step_length = length_in_water * this->units.water_density / (1 * mat.rho_mass);
         trk.update_post_vertex_position(step_length);
     }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 
 #endif

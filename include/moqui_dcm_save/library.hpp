@@ -4,8 +4,8 @@ namespace moqui_dcm_save {
 
 class Library {
    public:
-    void hello();
-    int add(int a, int b);
+    static void hello();
+    static int add(int first_value, int second_value);
 };
 
 }  // namespace moqui_dcm_save

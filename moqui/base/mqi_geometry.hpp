@@ -7,19 +7,16 @@
 
 #include <array>
 #include <map>
+#include <moqui/base/mqi_matrix.hpp>
+#include <moqui/base/mqi_vec.hpp>
 #include <string>
 #include <vector>
 
-#include <moqui/base/mqi_matrix.hpp>
-#include <moqui/base/mqi_vec.hpp>
-
-namespace mqi
-{
+namespace mqi {
 
 /// Enumerate for geometry type
 /// \note many of these are not supported yet.
-typedef enum
-{
+typedef enum {
     SNOUT,
     RANGESHIFTER,
     COMPENSATOR,
@@ -38,55 +35,41 @@ typedef enum
 
 /// \class geometry
 /// Top abstraction class so it has only translation and rotational movement.
-class geometry
-{
-
-public:
-    const mqi::vec3<float>   pos;       ///< position, public access
-    const mqi::mat3x3<float> rot;       ///< rotation, public access
-    const geometry_type      geotype;   ///< geometry type, public access
+class geometry {
+   public:
+    const mqi::vec3<float> pos;    ///< position, public access
+    const mqi::mat3x3<float> rot;  ///< rotation, public access
+    const geometry_type geotype;   ///< geometry type, public access
 
     /// Constructor
     /// \param p_xyz position vector
     /// \param rot_xyz rotation matrix 3x3
-    geometry(mqi::vec3<float>& p_xyz, mqi::mat3x3<float>& rot_xyz, mqi::geometry_type t) :
-        pos(p_xyz), rot(rot_xyz), geotype(t) {
+    geometry(mqi::vec3<float>& p_xyz, mqi::mat3x3<float>& rot_xyz, mqi::geometry_type t)
+        : pos(p_xyz), rot(rot_xyz), geotype(t) {
         ;
     }
 
     /// Constructor
     /// \param p_xyz position vector
     /// \param rot_xyz rotation matrix 3x3
-    geometry(const mqi::vec3<float>&   p_xyz,
-             const mqi::mat3x3<float>& rot_xyz,
-             const mqi::geometry_type  t) :
-        pos(p_xyz),
-        rot(rot_xyz), geotype(t) {
+    geometry(const mqi::vec3<float>& p_xyz, const mqi::mat3x3<float>& rot_xyz,
+             const mqi::geometry_type t)
+        : pos(p_xyz), rot(rot_xyz), geotype(t) {
         ;
     }
 
     /// Copy constructor
-    geometry(const geometry& rhs) : geotype(rhs.geotype), pos(rhs.pos), rot(rhs.rot) {
-        ;
-    }
+    geometry(const geometry& rhs) : geotype(rhs.geotype), pos(rhs.pos), rot(rhs.rot) { ; }
 
     /// Assignment operator
-    const geometry&
-    operator=(const mqi::geometry& rhs) {
-        return rhs;
-    }
+    const geometry& operator=(const mqi::geometry& rhs) { return rhs; }
 
     /// Destructor
-    ~geometry() {
-        ;
-    }
+    ~geometry() { ; }
 
     /// Prints geometry information
-    virtual void
-    dump() const {
-        ;
-    }
+    virtual void dump() const { ; }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 #endif

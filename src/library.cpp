@@ -1,15 +1,11 @@
-#include "library.h"
+#include "moqui_dcm_save/library.hpp"
 
 #include <iostream>
 
-int add(int a, int b) {
-    return a + b;
+void moqui_dcm_save::Library::hello() {
+    std::cout << "Hello from Library!" << std::endl;
 }
 
-int multiply(int a, int b) {
-    return a * b;
-}
-
-void greet(const std::string& name) {
-    std::cout << "Hello, " << name << "!" << std::endl;
+int moqui_dcm_save::Library::add(int first_value, int second_value) {
+    return first_value + second_value;
 }

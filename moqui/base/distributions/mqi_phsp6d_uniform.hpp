@@ -7,21 +7,18 @@
 
 #include <moqui/base/distributions/mqi_pdfMd.hpp>
 
-namespace mqi
-{
+namespace mqi {
 /// \class phsp_6d
 ///
 /// 6-dimensional uniform pdf for phase-space variables for a spot
 //  phase-space variables are position (x,y,z) and direction (x',y',z')
 /// \tparam T type of return value
-template<typename T>
-class phsp_6d_uniform : public pdf_Md<T, 6>
-{
-
+template <typename T>
+class phsp_6d_uniform : public pdf_Md<T, 6> {
     /// correlations for x-x' and y-y' respectively
-    std::array<T, 2> rho_;   ///< For X,Y
+    std::array<T, 2> rho_;  ///< For X,Y
 
-public:
+   public:
     /// Random engine and distribution function
     //    std::default_random_engine  gen_;
     //    std::normal_distribution<T> func_;
@@ -37,8 +34,8 @@ public:
     /// \note seed setup needs to be done by public method
     /// gen_.seed(from outside, topas or UI); //Ideally set from TOPAS?
     CUDA_HOST_DEVICE
-    phsp_6d_uniform(std::array<T, 6>& m, std::array<T, 6>& s, std::array<T, 2>& r) :
-        pdf_Md<T, 6>(m, s), rho_(r) {
+    phsp_6d_uniform(std::array<T, 6>& m, std::array<T, 6>& s, std::array<T, 2>& r)
+        : pdf_Md<T, 6>(m, s), rho_(r) {
         //#if !defined(__CUDACC__)
         //        gen_.seed(std::chrono::system_clock::now().time_since_epoch().count());
         //        gen_.seed(1000);
@@ -49,11 +46,8 @@ public:
 
     /// Constructor to initializes mean, sigma, rho, and random engine
     CUDA_HOST_DEVICE
-    phsp_6d_uniform(const std::array<T, 6>& m,
-                    const std::array<T, 6>& s,
-                    const std::array<T, 6>& r) :
-        pdf_Md<T, 6>(m, s),
-        rho_(r) {
+    phsp_6d_uniform(const std::array<T, 6>& m, const std::array<T, 6>& s, const std::array<T, 6>& r)
+        : pdf_Md<T, 6>(m, s), rho_(r) {
         //#if !defined(__CUDACC__)
         //        gen_.seed(std::chrono::system_clock::now().time_since_epoch().count());
         //        gen_.seed(1000);
@@ -64,26 +58,25 @@ public:
 
     /// Sample 6 phase-space variables and returns
     CUDA_HOST_DEVICE
-    virtual std::array<T, 6>
-    operator()(std::default_random_engine* rng) {
+    virtual std::array<T, 6> operator()(std::default_random_engine* rng) {
         std::array<T, 6> phsp = pdf_Md<T, 6>::mean_;
-        T                Ux   = func_(*rng);
-        T                Vx   = func_(*rng);
-        T                Uy   = func_(*rng);
-        T                Vy   = func_(*rng);
-        T                Uz   = func_(*rng);   //T Vz = func_(rng);
+        T Ux = func_(*rng);
+        T Vx = func_(*rng);
+        T Uy = func_(*rng);
+        T Vy = func_(*rng);
+        T Uz = func_(*rng);  // T Vz = func_(rng);
         phsp[0] += pdf_Md<T, 6>::sigma_[0] * Ux;
         phsp[1] += pdf_Md<T, 6>::sigma_[1] * Uy;
         phsp[2] += pdf_Md<T, 6>::sigma_[2] * Uz;
 
         phsp[3] +=
-          pdf_Md<T, 6>::sigma_[3] * (rho_[0] * Ux + Vx * std::sqrt(1.0 - rho_[0] * rho_[0]));
+            pdf_Md<T, 6>::sigma_[3] * (rho_[0] * Ux + Vx * std::sqrt(1.0 - rho_[0] * rho_[0]));
         phsp[4] +=
-          pdf_Md<T, 6>::sigma_[4] * (rho_[1] * Uy + Vy * std::sqrt(1.0 - rho_[1] * rho_[1]));
+            pdf_Md<T, 6>::sigma_[4] * (rho_[1] * Uy + Vy * std::sqrt(1.0 - rho_[1] * rho_[1]));
         phsp[5] = -1.0 * std::sqrt(1.0 - phsp[3] * phsp[3] - phsp[4] * phsp[4]);
         return phsp;
     };
 };
 
-}   // namespace mqi
+}  // namespace mqi
 #endif

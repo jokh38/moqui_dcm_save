@@ -11,57 +11,44 @@
 #include <moqui/base/mqi_grid3d.hpp>
 #include <moqui/base/mqi_math.hpp>
 #include <moqui/base/mqi_vec.hpp>
-//typedef float phsp_t;
+// typedef float phsp_t;
 
-namespace mqi
-{
+namespace mqi {
 /// \class aperture3d
 /// \tparam T for grid values, e.g., dose, HU, vector
 /// \tparam R for grid coordinates, float, double, etc.
-template<typename T, typename R>
-class aperture3d : public grid3d<T, R>
-{
-public:
-    uint16_t       num_opening;
-    uint16_t*      num_segments;
+template <typename T, typename R>
+class aperture3d : public grid3d<T, R> {
+   public:
+    uint16_t num_opening;
+    uint16_t* num_segments;
     mqi::vec2<R>** block_segment;
     //    mqi::mat3x3<R> rotation_matrix_fwd;
     //    mqi::mat3x3<R> rotation_matrix_inv;
     //    mqi::vec3<R>   translation_vector;
     ///< Default constructor only for child classes
-    ///cuda_host_device or cuda_host
-    /// note (Feb27,2020): it may be uesless
+    /// cuda_host_device or cuda_host
+    ///  note (Feb27,2020): it may be uesless
     CUDA_HOST_DEVICE
-    aperture3d() : grid3d<T, R>() {
-        ;
-    }
+    aperture3d() : grid3d<T, R>() { ; }
 
     /// Construct a rectlinear grid from array of x/y/z with their size
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    aperture3d(const R     xe[],
-               const ijk_t n_xe,
-               const R     ye[],
-               const ijk_t n_ye,
-               const R     ze[],
-               const ijk_t n_ze) :
-        grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze) {}
+    aperture3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
+               const ijk_t n_ze)
+        : grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze) {}
 
     /// Construct a rectlinear grid from array of x/y/z with their size
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    aperture3d(const R     xe_min,
-               const R     xe_max,
-               const ijk_t n_xe,   //n_xe : steps + 1
-               const R     ye_min,
-               const R     ye_max,
-               const ijk_t n_ye,
-               const R     ze_min,
-               const R     ze_max,
-               const ijk_t n_ze) :
-        grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze) {}
+    aperture3d(const R xe_min, const R xe_max,
+               const ijk_t n_xe,  // n_xe : steps + 1
+               const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+               const ijk_t n_ze)
+        : grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze) {}
 
     /// Constructor for oriented bounding boxess
     /// Construct a rectlinear grid from array of x/y/z with their size and rotation angless
@@ -69,17 +56,11 @@ public:
     /// \param xn,yn,zn  size of 1D array for points.
     /// \parmas angles rotation angle in degree for each axis.
     CUDA_HOST_DEVICE
-    aperture3d(const R           xe_min,
-               const R           xe_max,
-               const ijk_t       n_xe,   //n_xe : steps + 1
-               const R           ye_min,
-               const R           ye_max,
-               const ijk_t       n_ye,
-               const R           ze_min,
-               const R           ze_max,
-               const ijk_t       n_ze,
-               std::array<R, 3>& angles) :
-        grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, angles) {}
+    aperture3d(const R xe_min, const R xe_max,
+               const ijk_t n_xe,  // n_xe : steps + 1
+               const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+               const ijk_t n_ze, std::array<R, 3>& angles)
+        : grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, angles) {}
 
     /// Constructor for oriented bounding boxess
     /// Construct a rectlinear grid from array of x/y/z with their size and rotation angless
@@ -87,43 +68,27 @@ public:
     /// \param xn,yn,zn  size of 1D array for points.
     /// \parmas angles rotation angle in degree for each axis.
     CUDA_HOST_DEVICE
-    aperture3d(const R        xe_min,
-               const R        xe_max,
-               const ijk_t    n_xe,   //n_xe : steps + 1
-               const R        ye_min,
-               const R        ye_max,
-               const ijk_t    n_ye,
-               const R        ze_min,
-               const R        ze_max,
-               const ijk_t    n_ze,
-               mqi::mat3x3<R> rxyz) :
-        grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, rxyz) {}
+    aperture3d(const R xe_min, const R xe_max,
+               const ijk_t n_xe,  // n_xe : steps + 1
+               const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+               const ijk_t n_ze, mqi::mat3x3<R> rxyz)
+        : grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, rxyz) {}
 
     /// Construct a rectlinear grid from array of x/y/z with their size
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    aperture3d(const R        xe[],
-               const ijk_t    n_xe,
-               const R        ye[],
-               const ijk_t    n_ye,
-               const R        ze[],
-               const ijk_t    n_ze,
-               mqi::mat3x3<R> rxyz) :
-        grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze, rxyz) {}
+    aperture3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
+               const ijk_t n_ze, mqi::mat3x3<R> rxyz)
+        : grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze, rxyz) {}
 
     /// Construct a rectlinear grid from array of x/y/z with their size
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    aperture3d(const R           xe[],
-               const ijk_t       n_xe,
-               const R           ye[],
-               const ijk_t       n_ye,
-               const R           ze[],
-               const ijk_t       n_ze,
-               std::array<R, 3>& angles) :
-        grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze) {}
+    aperture3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
+               const ijk_t n_ze, std::array<R, 3>& angles)
+        : grid3d<T, R>(xe, n_xe, ye, n_ye, ze, n_ze) {}
 
     /// Constructor for oriented bounding boxess
     /// Construct a rectlinear grid from array of x/y/z with their size and rotation angless
@@ -131,22 +96,14 @@ public:
     /// \param xn,yn,zn  size of 1D array for points.
     /// \parmas angles rotation angle in degree for each axis.
     CUDA_HOST_DEVICE
-    aperture3d(const R           xe_min,
-               const R           xe_max,
-               const ijk_t       n_xe,   //n_xe : steps + 1
-               const R           ye_min,
-               const R           ye_max,
-               const ijk_t       n_ye,
-               const R           ze_min,
-               const R           ze_max,
-               const ijk_t       n_ze,
-               std::array<R, 3>& angles,
-               int16_t           num_opening,
-               uint16_t*         num_segment,
-               mqi::vec2<R>**    block_segment) :
-        grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, angles) {
-        this->num_opening   = num_opening;
-        this->num_segments  = num_segment;
+    aperture3d(const R xe_min, const R xe_max,
+               const ijk_t n_xe,  // n_xe : steps + 1
+               const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+               const ijk_t n_ze, std::array<R, 3>& angles, int16_t num_opening,
+               uint16_t* num_segment, mqi::vec2<R>** block_segment)
+        : grid3d<T, R>(xe_min, xe_max, n_xe, ye_min, ye_max, n_ye, ze_min, ze_max, n_ze, angles) {
+        this->num_opening = num_opening;
+        this->num_segments = num_segment;
         this->block_segment = block_segment;
     }
 
@@ -161,13 +118,12 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    bool
-    sol1_1(mqi::vec3<R> pos, mqi::vec2<R>* segment, uint16_t num_segment) {
+    bool sol1_1(mqi::vec3<R> pos, mqi::vec2<R>* segment, uint16_t num_segment) {
         mqi::vec2<R> pos0 = segment[0];
         mqi::vec2<R> pos1;
-        float        min_y, max_y, max_x, intersect_x;
-        int          count = 0;
-        int          i, j, c = 0;
+        float min_y, max_y, max_x, intersect_x;
+        int count = 0;
+        int i, j, c = 0;
         for (i = 0, j = num_segment - 1; i < num_segment; j = i++) {
             pos0 = segment[i];
             pos1 = segment[j];
@@ -181,8 +137,7 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    bool
-    is_inside(mqi::vec3<R> pos) {
+    bool is_inside(mqi::vec3<R> pos) {
         //    printf("block data size %lu\n", block_data.size());
         bool inside;
         for (int i = 0; i < this->num_opening; i++) {
@@ -198,25 +153,24 @@ public:
     ///< intersect. a ray from a voxel (ijk) in the grid
     /// written by Hoyeon, plane equation based
     CUDA_HOST_DEVICE
-    virtual intersect_t<R>
-    intersect(mqi::vec3<R>& p, mqi::vec3<R>& d, mqi::vec3<ijk_t> idx) {
+    virtual intersect_t<R> intersect(mqi::vec3<R>& p, mqi::vec3<R>& d, mqi::vec3<ijk_t> idx) {
         //        printf("in ");
         //        idx.dump();
         /// n100_ is vector of x-axis
         /// Change the method to operate with roated box
-        mqi::intersect_t<R> its;   //return value
+        mqi::intersect_t<R> its;  // return value
         its.cell = idx;
         its.side = mqi::NONE_XYZ_PLANE;
-        mqi::intersect_t<R> its_out;   //return value
-        mqi::intersect_t<R> its_in;    //return value
-        its_out.dist   = 0;
+        mqi::intersect_t<R> its_out;  // return value
+        mqi::intersect_t<R> its_in;   // return value
+        its_out.dist = 0;
         its_out.cell.x = -5;
         its_out.cell.y = -5;
         its_out.cell.z = -5;
-        its_in.dist    = 0;
-        its_in.cell.x  = -10;
-        its_in.cell.y  = -10;
-        its_in.cell.z  = -10;
+        its_in.dist = 0;
+        its_in.cell.x = -10;
+        its_in.cell.y = -10;
+        its_in.cell.z = -10;
         //        printf("in ");
         //        idx.dump();
         if (!is_inside(p)) {
@@ -250,6 +204,6 @@ public:
     }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 
 #endif

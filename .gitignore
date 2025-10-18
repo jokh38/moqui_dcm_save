@@ -1,0 +1,27 @@
+# Build artifacts
+build/
+compile_commands.json
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Dependencies (if using package managers)
+vendor/
+node_modules/

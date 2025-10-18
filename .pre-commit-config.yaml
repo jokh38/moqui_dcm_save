@@ -30,16 +30,18 @@ repos:
         require_serial: false
 
       # Basic syntax checking (not full static analysis)
-      - id: clang-tidy
-        args: [
-          -warnings-as-errors=,
-          --quiet,
-          --use-color,
-          -checks=-*,readability-identifier-naming,modernize-use-trailing-type-return,bugprone-*
-        ]
-        description: Basic C++ linting (full analysis in pre-push)
-        require_serial: false
-        pass_filenames: false
+      # - id: clang-tidy
+      #   args: [
+      #     -warnings-as-errors=,
+      #     --quiet,
+      #     --use-color,
+      #     -checks=-*,readability-identifier-naming,modernize-use-trailing-type-return,bugprone-*,
+      #     -cppcoreguidelines-avoid-magic-numbers,
+      #     -readability-magic-numbers
+      #   ]
+      #   description: Basic C++ linting (full analysis in pre-push)
+      #   require_serial: false
+      #   pass_filenames: false
 
   # CMake file formatting (if available)
   - repo: https://github.com/cheshirekow/cmake-format-precommit

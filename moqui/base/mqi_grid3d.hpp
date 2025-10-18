@@ -10,29 +10,26 @@
 #include <moqui/base/mqi_coordinate_transform.hpp>
 #include <moqui/base/mqi_math.hpp>
 #include <moqui/base/mqi_vec.hpp>
-//typedef double phsp_t;
+// typedef double phsp_t;
 
-namespace mqi
-{
+namespace mqi {
 
 ///< struct to describe intersect information
 ///  plane is between v0 ~ v1 ?
-template<typename R>
+template <typename R>
 struct intersect_t {
-    R              dist;   //distance to the intersection plane (cell), invalid when dist < 0
-    cell_side      side;   //side of entering cell
-    vec3<ijk_t>    cell;   //index of entering cell
-    transport_type type;   // type of current node's geometry
+    R dist;               // distance to the intersection plane (cell), invalid when dist < 0
+    cell_side side;       // side of entering cell
+    vec3<ijk_t> cell;     // index of entering cell
+    transport_type type;  // type of current node's geometry
 };
 
 /// \class grid3d
 /// \tparam T for grid values, e.g., dose, HU, vector
 /// \tparam R for grid coordinates, float, double, etc.
-template<typename T, typename R>
-class grid3d
-{
-
-protected:
+template <typename T, typename R>
+class grid3d {
+   protected:
     ///< Number of data points (pixels) not edges.
     /// dim_.x, dim_.y, dim_.z
     mqi::vec3<ijk_t> dim_;
@@ -42,18 +39,18 @@ protected:
     /// number of edge points is dim_.x/y/z + 1
     /// acsending order
     /// TODO: const R* xe_ ?
-    R* xe_ = nullptr;   ///< x_min, ..., x_max
-    R* ye_ = nullptr;   ///< y_min, ..., y_max
-    R* ze_ = nullptr;   ///< z_min, ..., z_max
+    R* xe_ = nullptr;  ///< x_min, ..., x_max
+    R* ye_ = nullptr;  ///< y_min, ..., y_max
+    R* ze_ = nullptr;  ///< z_min, ..., z_max
 
     /// Two edge position of bounding box
-    mqi::vec3<R> V000_;   ///< coner x_min, y_min, z_min
-    mqi::vec3<R> V111_;   ///< coner x_max, y_max, z_max
-    mqi::vec3<R> C_;      ///< Center
+    mqi::vec3<R> V000_;  ///< coner x_min, y_min, z_min
+    mqi::vec3<R> V111_;  ///< coner x_max, y_max, z_max
+    mqi::vec3<R> C_;     ///< Center
 
-    mqi::vec3<R> n100_;   ///< normal vector of 1st (X) axis
-    mqi::vec3<R> n010_;   ///< normal vector of 2nd (Y) axis
-    mqi::vec3<R> n001_;   ///< normal vector of 3rd (Z) axis
+    mqi::vec3<R> n100_;  ///< normal vector of 1st (X) axis
+    mqi::vec3<R> n010_;  ///< normal vector of 2nd (Y) axis
+    mqi::vec3<R> n001_;  ///< normal vector of 3rd (Z) axis
 
     ///< Data in this rectlinear
     ///< size: dim_.x*dim_.y*dim_.z
@@ -61,8 +58,7 @@ protected:
 
     ///< Calculate C000/C111
     CUDA_HOST_DEVICE
-    void
-    calculate_bounding_box(void) {
+    void calculate_bounding_box(void) {
         V000_.x = xe_[0];
         V000_.y = ye_[0];
         V000_.z = ze_[0];
@@ -88,27 +84,21 @@ protected:
         n001_.normalize();
     }
 
-public:
+   public:
     mqi::mat3x3<R> rotation_matrix_fwd;
     mqi::mat3x3<R> rotation_matrix_inv;
-    mqi::vec3<R>   translation_vector;
+    mqi::vec3<R> translation_vector;
     ///< Default constructor only for child classes
-    ///cuda_host_device or cuda_host
-    /// note (Feb27,2020): it may be uesless
+    /// cuda_host_device or cuda_host
+    ///  note (Feb27,2020): it may be uesless
     CUDA_HOST_DEVICE
-    grid3d() {
-        ;
-    }
+    grid3d() { ; }
 
     /// Construct a rectlinear grid from array of x/y/z with their size
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    grid3d(const R     xe[],
-           const ijk_t n_xe,
-           const R     ye[],
-           const ijk_t n_ye,
-           const R     ze[],
+    grid3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
            const ijk_t n_ze) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
@@ -132,14 +122,9 @@ public:
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    grid3d(const R     xe_min,
-           const R     xe_max,
-           const ijk_t n_xe,   //n_xe : steps + 1
-           const R     ye_min,
-           const R     ye_max,
-           const ijk_t n_ye,
-           const R     ze_min,
-           const R     ze_max,
+    grid3d(const R xe_min, const R xe_max,
+           const ijk_t n_xe,  // n_xe : steps + 1
+           const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
            const ijk_t n_ze) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
@@ -169,16 +154,10 @@ public:
     /// \param xn,yn,zn  size of 1D array for points.
     /// \parmas angles rotation angle in degree for each axis.
     CUDA_HOST_DEVICE
-    grid3d(const R           xe_min,
-           const R           xe_max,
-           const ijk_t       n_xe,   //n_xe : steps + 1
-           const R           ye_min,
-           const R           ye_max,
-           const ijk_t       n_ye,
-           const R           ze_min,
-           const R           ze_max,
-           const ijk_t       n_ze,
-           std::array<R, 3>& angles) {
+    grid3d(const R xe_min, const R xe_max,
+           const ijk_t n_xe,  // n_xe : steps + 1
+           const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+           const ijk_t n_ze, std::array<R, 3>& angles) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
         ze_ = new R[n_ze];
@@ -214,16 +193,10 @@ public:
     /// \param xn,yn,zn  size of 1D array for points.
     /// \parmas angles rotation angle in degree for each axis.
     CUDA_HOST_DEVICE
-    grid3d(const R        xe_min,
-           const R        xe_max,
-           const ijk_t    n_xe,   //n_xe : steps + 1
-           const R        ye_min,
-           const R        ye_max,
-           const ijk_t    n_ye,
-           const R        ze_min,
-           const R        ze_max,
-           const ijk_t    n_ze,
-           mqi::mat3x3<R> rxyz) {
+    grid3d(const R xe_min, const R xe_max,
+           const ijk_t n_xe,  // n_xe : steps + 1
+           const R ye_min, const R ye_max, const ijk_t n_ye, const R ze_min, const R ze_max,
+           const ijk_t n_ze, mqi::mat3x3<R> rxyz) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
         ze_ = new R[n_ze];
@@ -254,13 +227,8 @@ public:
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    grid3d(const R        xe[],
-           const ijk_t    n_xe,
-           const R        ye[],
-           const ijk_t    n_ye,
-           const R        ze[],
-           const ijk_t    n_ze,
-           mqi::mat3x3<R> rxyz) {
+    grid3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
+           const ijk_t n_ze, mqi::mat3x3<R> rxyz) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
         ze_ = new R[n_ze];
@@ -286,13 +254,8 @@ public:
     /// \param x,y,z  1D array of central points of voxels along x-axis
     /// \param xn,yn,zn  size of 1D array for points.
     CUDA_HOST_DEVICE
-    grid3d(const R           xe[],
-           const ijk_t       n_xe,
-           const R           ye[],
-           const ijk_t       n_ye,
-           const R           ze[],
-           const ijk_t       n_ze,
-           std::array<R, 3>& angles) {
+    grid3d(const R xe[], const ijk_t n_xe, const R ye[], const ijk_t n_ye, const R ze[],
+           const ijk_t n_ze, std::array<R, 3>& angles) {
         xe_ = new R[n_xe];
         ye_ = new R[n_ye];
         ze_ = new R[n_ze];
@@ -323,11 +286,10 @@ public:
     /// set edge pointer
     /// \return pointer of data
     CUDA_HOST_DEVICE
-    virtual void
-    set_edges(R* xe, ijk_t nx, R* ye, ijk_t ny, R* ze, ijk_t nz) {
-        xe_    = xe;
-        ye_    = ye;
-        ze_    = ze;
+    virtual void set_edges(R* xe, ijk_t nx, R* ye, ijk_t ny, R* ze, ijk_t nz) {
+        xe_ = xe;
+        ye_ = ye;
+        ze_ = ze;
         dim_.x = nx - 1;
         dim_.y = ny - 1;
         dim_.z = nz - 1;
@@ -335,50 +297,31 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    virtual R*
-    get_x_edges() {
-        return xe_;
-    }
+    virtual R* get_x_edges() { return xe_; }
 
     CUDA_HOST_DEVICE
-    virtual R*
-    get_y_edges() {
-        return ye_;
-    }
+    virtual R* get_y_edges() { return ye_; }
 
     CUDA_HOST_DEVICE
-    virtual R*
-    get_z_edges() {
-        return ze_;
-    }
+    virtual R* get_z_edges() { return ze_; }
 
     /// Returns number of bins box
     CUDA_HOST_DEVICE
-    mqi::vec3<ijk_t>
-    get_nxyz() {
-        return dim_;
-    }
+    mqi::vec3<ijk_t> get_nxyz() { return dim_; }
 
     /// Returns the data value for given x/y/z index
     /// \param[in] p index, p[0], p[1], p[2] for x, y, z.
     CUDA_HOST_DEVICE
-    virtual const T
-    operator[](const mqi::vec3<ijk_t> p) {
-        return data_[ijk2cnb(p.x, p.y, p.z)];
-    }
+    virtual const T operator[](const mqi::vec3<ijk_t> p) { return data_[ijk2cnb(p.x, p.y, p.z)]; }
 
     /// Returns the data value for given x/y/z index
     /// \param[in] p index, p[0], p[1], p[2] for x, y, z.
     CUDA_HOST_DEVICE
-    virtual const T
-    operator[](const mqi::cnb_t p) {
-        return data_[p];
-    }
+    virtual const T operator[](const mqi::cnb_t p) { return data_[p]; }
 
     /// Prints out x,y,z coordinate positions
     CUDA_HOST_DEVICE
-    virtual void
-    dump_edges() {
+    virtual void dump_edges() {
         printf("X edges: ");
         for (ijk_t i = 0; i <= dim_.x; ++i) {
             printf(" %f", xe_[i]);
@@ -400,43 +343,37 @@ public:
 
     /// Converts index of x,y,z to index of valarray(data)
     CUDA_HOST_DEVICE
-    virtual inline cnb_t
-    ijk2cnb(ijk_t i, ijk_t j, ijk_t k) {
+    virtual inline cnb_t ijk2cnb(ijk_t i, ijk_t j, ijk_t k) {
         return k * dim_.x * dim_.y + j * dim_.x + i;
     }
 
     /// Converts index of x,y,z to index of valarray(data)
     CUDA_HOST_DEVICE
-    cnb_t
-    ijk2cnb(vec3<ijk_t> idx) {
-        return idx.z * dim_.x * dim_.y + idx.y * dim_.x + idx.x;
-    }
+    cnb_t ijk2cnb(vec3<ijk_t> idx) { return idx.z * dim_.x * dim_.y + idx.y * dim_.x + idx.x; }
 
     /// Converts copy number to index of x,y,z
     CUDA_HOST_DEVICE
-    virtual inline vec3<ijk_t>
-    cnb2ijk(cnb_t c) {
+    virtual inline vec3<ijk_t> cnb2ijk(cnb_t c) {
         const cnb_t nxy = dim_.x * dim_.y;
         vec3<ijk_t> ijk;
         ijk.z = c / nxy;
         ijk.y = (c % (nxy)) / dim_.x;
         ijk.x = (c % (nxy)) % dim_.x;
-        //ijk.dump();
+        // ijk.dump();
         return ijk;
     }
 
     CUDA_HOST_DEVICE
-    void
-    delete_data_if_used(void) {
-        if (data_ != nullptr) delete[] data_;
+    void delete_data_if_used(void) {
+        if (data_ != nullptr)
+            delete[] data_;
     }
 
     /// Initializes data, currently values are sum of index square for testing
     CUDA_HOST
-    virtual void
-    load_data() {
-        //this->delete_data_if_used();
-        //data_ = new T[dim_.x * dim_.y * dim_.z];
+    virtual void load_data() {
+        // this->delete_data_if_used();
+        // data_ = new T[dim_.x * dim_.y * dim_.z];
     }
 
     /// Reads data from other source,  currently values are sum of index square for testing
@@ -444,16 +381,14 @@ public:
     /// //will copy
     /// in case src is CPU and dest GPU
     CUDA_HOST_DEVICE
-    virtual void
-    set_data(T* src) {
+    virtual void set_data(T* src) {
         this->delete_data_if_used();
-        data_ = src;   //can be change pointer but we will copy.
+        data_ = src;  // can be change pointer but we will copy.
     }
 
     /// Fills data with a given value
     CUDA_HOST_DEVICE
-    virtual void
-    fill_data(T a) {
+    virtual void fill_data(T a) {
         data_ = new T[dim_.x * dim_.y * dim_.z];
         for (uint32_t i = 0; i < dim_.x * dim_.y * dim_.z; ++i)
             data_[i] = a;
@@ -462,24 +397,19 @@ public:
     /// Returns data
     /// \return pointer of data
     CUDA_HOST_DEVICE
-    T*
-    get_data() const {
-        return data_;
-    }
+    T* get_data() const { return data_; }
 
     CUDA_HOST_DEVICE
-    R
-    get_volume(const mqi::cnb_t p) {
-        vec3<ijk_t> vox    = cnb2ijk(p);
-        R           volume = xe_[vox.x + 1] - xe_[vox.x];
+    R get_volume(const mqi::cnb_t p) {
+        vec3<ijk_t> vox = cnb2ijk(p);
+        R volume = xe_[vox.x + 1] - xe_[vox.x];
         volume *= ye_[vox.y + 1] - ye_[vox.y];
         volume *= ze_[vox.z + 1] - ze_[vox.z];
         return volume;
     }
 
     CUDA_HOST_DEVICE
-    R
-    get_volume(const mqi::vec3<ijk_t> vox) {
+    R get_volume(const mqi::vec3<ijk_t> vox) {
         R volume = xe_[vox.x + 1] - xe_[vox.x];
         volume *= ye_[vox.y + 1] - ye_[vox.y];
         volume *= ze_[vox.z + 1] - ze_[vox.z];
@@ -488,24 +418,23 @@ public:
     ///< intersect. a ray from a voxel (ijk) in the grid
     /// written by Hoyeon, plane equation based
     CUDA_HOST_DEVICE
-    intersect_t<R>
-    intersect(mqi::vec3<R>& p, mqi::vec3<R>& d, mqi::vec3<ijk_t>& idx) {
+    intersect_t<R> intersect(mqi::vec3<R>& p, mqi::vec3<R>& d, mqi::vec3<ijk_t>& idx) {
         /// n100_ is vector of x-axis
         /// Change the method to operate with roated box
-        mqi::intersect_t<R> its;   //return value
+        mqi::intersect_t<R> its;  // return value
         its.cell = idx;
         its.side = mqi::NONE_XYZ_PLANE;
-        mqi::intersect_t<R> its_non;   //return value
-        its_non.side   = mqi::NONE_XYZ_PLANE;
-        its_non.dist   = -1.0;
+        mqi::intersect_t<R> its_non;  // return value
+        its_non.side = mqi::NONE_XYZ_PLANE;
+        its_non.dist = -1.0;
         its_non.cell.x = -1;
         its_non.cell.y = -1;
         its_non.cell.z = -1;
         ///< temporal variables
-        mqi::vec3<R>         t_min, t_max;
+        mqi::vec3<R> t_min, t_max;
         mqi::vec3<cell_side> side(NONE_XYZ_PLANE, NONE_XYZ_PLANE, NONE_XYZ_PLANE);
-        mqi::vec3<R>         vox1;
-        mqi::vec3<R>         vox2;
+        mqi::vec3<R> vox1;
+        mqi::vec3<R> vox2;
         vox1.x = xe_[idx.x];
         vox1.y = ye_[idx.y];
         vox1.z = ze_[idx.z];
@@ -518,7 +447,6 @@ public:
                (p.y < vox2.y || fabsf(vox2.y - p.y) < 1e-3));
         if ((vox1.z < p.z || fabsf(vox1.z - p.z) < 1e-3) &&
             (p.z < vox2.z || fabsf(vox2.z - p.z) < 1e-3)) {
-
         } else {
             printf("vtx1.z %f p.x %f vox1.z %f d.z %f\n", vox1.z, p.z, vox2.z, d.z);
         }
@@ -529,16 +457,17 @@ public:
         R me = d.dot(n100_);
         R pe = p.dot(n100_);
         /// non intersect
-        /// Is this required? Since the particle is alreay in a voxel, it should intersect with some surface
+        /// Is this required? Since the particle is alreay in a voxel, it should intersect with some
+        /// surface
         if (me * me > mqi::near_zero) {
-            if (me < 0) {   //if intersect, X-
+            if (me < 0) {  // if intersect, X-
                 if (mqi::mqi_abs(-(p.x - vox1.x) / d.x) < mqi::geometry_tolerance && idx.x > 0) {
                     t_max.x = 1 / mqi::geometry_tolerance;
                 } else {
                     t_max.x = -(p.x - vox1.x) / d.x;
                 }
                 t_min.x = -(p.x - vox2.x) / d.x;
-            } else {   //if intersect, X+
+            } else {  // if intersect, X+
                 t_min.x = (vox1.x - p.x) / d.x;
                 if (mqi::mqi_abs((vox2.x - p.x) / d.x) < mqi::geometry_tolerance &&
                     idx.x < dim_.x) {
@@ -548,23 +477,23 @@ public:
                 }
             }
         } else {
-            d.x     = 0;
+            d.x = 0;
             t_min.x = mqi::m_inf;
             t_max.x = mqi::p_inf;
-        }   //----< X
+        }  //----< X
 
         ///< check Y axis
         me = d.dot(n010_);
         pe = p.dot(n010_);
         if (me * me > mqi::near_zero) {
-            if (me < 0) {   //if intersect, Y-
+            if (me < 0) {  // if intersect, Y-
                 if (mqi::mqi_abs(-(p.y - vox1.y) / d.y) < mqi::geometry_tolerance && idx.y > 0) {
                     t_max.y = 1 / mqi::geometry_tolerance;
                 } else {
                     t_max.y = -(p.y - vox1.y) / d.y;
                 }
                 t_min.y = -(p.y - vox2.y) / d.y;
-            } else {   //if intersect, Y+
+            } else {  // if intersect, Y+
                 t_min.y = (vox1.y - p.y) / d.y;
                 if (mqi::mqi_abs((vox2.y - p.y) / d.y) < mqi::geometry_tolerance &&
                     idx.y < dim_.y) {
@@ -574,22 +503,22 @@ public:
                 }
             }
         } else {
-            d.y     = 0;
+            d.y = 0;
             t_min.y = mqi::m_inf;
             t_max.y = mqi::p_inf;
-        }   //----< Y
+        }  //----< Y
         ///< check Z (3rd) axis
         me = d.dot(n001_);
         pe = p.dot(n001_);
         if (me * me > mqi::near_zero) {
-            if (me < 0) {   //if intersect, Z-
+            if (me < 0) {  // if intersect, Z-
                 if (mqi::mqi_abs(-(p.z - vox1.z) / d.z) < mqi::geometry_tolerance && idx.z > 0) {
                     t_max.z = 1 / mqi::geometry_tolerance;
                 } else {
                     t_max.z = -(p.z - vox1.z) / d.z;
                 }
                 t_min.z = -(p.z - vox2.z) / d.z;
-            } else {   //if intersect, Z+
+            } else {  // if intersect, Z+
                 t_min.z = (vox1.z - p.z) / d.z;
                 if (mqi::mqi_abs((vox2.z - p.z) / d.z) < mqi::geometry_tolerance &&
                     idx.z < dim_.z) {
@@ -599,7 +528,7 @@ public:
                 }
             }
         } else {
-            d.z     = 0;
+            d.z = 0;
             t_min.z = mqi::m_inf;
             t_max.z = mqi::p_inf;
         }
@@ -619,7 +548,6 @@ public:
             its.dist = u_max;
 
         } else {
-
             return its_non;
         }
         return its;
@@ -629,9 +557,8 @@ public:
     ///< return distance and side
     /// Calculated distance become integer and distance smaller than 1 is ignored
     CUDA_HOST_DEVICE
-    intersect_t<R>
-    intersect(mqi::vec3<R>& p, mqi::vec3<R>& d) {
-        mqi::intersect_t<R> its;   //return value
+    intersect_t<R> intersect(mqi::vec3<R>& p, mqi::vec3<R>& d) {
+        mqi::intersect_t<R> its;  // return value
         if (p.x >= xe_[0] && p.x <= xe_[dim_.x] && p.y >= ye_[0] && p.y <= ye_[dim_.y] &&
             p.z >= ze_[0] && p.z <= ze_[dim_.z]) {
             its.cell = this->index(p, d);
@@ -639,17 +566,17 @@ public:
             its.side = mqi::NONE_XYZ_PLANE;
             return its;
         } else {
-            its.dist   = -1.0;
-            its.side   = mqi::NONE_XYZ_PLANE;
+            its.dist = -1.0;
+            its.side = mqi::NONE_XYZ_PLANE;
             its.cell.x = -1;
             its.cell.y = -1;
             its.cell.z = -1;
         }
         ///< temporal variables
-        mqi::vec3<R>         t_min;
-        mqi::vec3<R>         t_max;
+        mqi::vec3<R> t_min;
+        mqi::vec3<R> t_max;
         mqi::vec3<cell_side> side(XM, YM, ZM);
-        mqi::vec3<R>         C2p = (p + d) - C_;
+        mqi::vec3<R> C2p = (p + d) - C_;
         C2p.normalize();
 
         ///< check X (1st axis)
@@ -658,56 +585,56 @@ public:
 
         /// non intersect
         if (me * me > mqi::near_zero) {
-            if (me > 0) {                          //if intersect, X+
-                t_min.x = (V000_.x - p.x) / d.x;   //min
-                t_max.x = (V111_.x - p.x) / d.x;   //max
-                side.x  = mqi::XM;
-            } else {                               //if intersect, X-
-                t_max.x = (V000_.x - p.x) / d.x;   //max
-                t_min.x = (V111_.x - p.x) / d.x;   //min
-                side.x  = mqi::XP;
+            if (me > 0) {                         // if intersect, X+
+                t_min.x = (V000_.x - p.x) / d.x;  // min
+                t_max.x = (V111_.x - p.x) / d.x;  // max
+                side.x = mqi::XM;
+            } else {                              // if intersect, X-
+                t_max.x = (V000_.x - p.x) / d.x;  // max
+                t_min.x = (V111_.x - p.x) / d.x;  // min
+                side.x = mqi::XP;
             }
 
         } else {
             // direction is near zero
-            d.x     = 0;
+            d.x = 0;
             t_min.x = mqi::m_inf;
             t_max.x = mqi::p_inf;
-        }   //----< X
+        }  //----< X
 
         ///< check Y axis
         me = d.dot(n010_);
         pe = p.dot(n010_);
         if (me * me > mqi::near_zero) {
-            if (me > 0) {                          //if intersect, Y+
-                t_min.y = (V000_.y - p.y) / d.y;   //min
-                t_max.y = (V111_.y - p.y) / d.y;   //max
-                side.y  = mqi::YM;
-            } else {                               //if intersect, Y-
-                t_max.y = (V000_.y - p.y) / d.y;   //max
-                t_min.y = (V111_.y - p.y) / d.y;   //min
-                side.y  = mqi::YP;
+            if (me > 0) {                         // if intersect, Y+
+                t_min.y = (V000_.y - p.y) / d.y;  // min
+                t_max.y = (V111_.y - p.y) / d.y;  // max
+                side.y = mqi::YM;
+            } else {                              // if intersect, Y-
+                t_max.y = (V000_.y - p.y) / d.y;  // max
+                t_min.y = (V111_.y - p.y) / d.y;  // min
+                side.y = mqi::YP;
             }
         } else {
-            d.y     = 0;
+            d.y = 0;
             t_min.y = mqi::m_inf;
             t_max.y = mqi::p_inf;
-        }   //----< Y
+        }  //----< Y
         ///< check Z (3rd) axis
         me = d.dot(n001_);
         pe = p.dot(n001_);
         if (me * me > mqi::near_zero) {
-            if (me > 0) {                          //if intersect, Z+
-                t_min.z = (V000_.z - p.z) / d.z;   //min
-                t_max.z = (V111_.z - p.z) / d.z;   //max
-                side.z  = mqi::ZM;
-            } else {                               //if intersect, Z-
-                t_max.z = (V000_.z - p.z) / d.z;   //max
-                t_min.z = (V111_.z - p.z) / d.z;   //min
-                side.z  = mqi::ZP;
+            if (me > 0) {                         // if intersect, Z+
+                t_min.z = (V000_.z - p.z) / d.z;  // min
+                t_max.z = (V111_.z - p.z) / d.z;  // max
+                side.z = mqi::ZM;
+            } else {                              // if intersect, Z-
+                t_max.z = (V000_.z - p.z) / d.z;  // max
+                t_min.z = (V111_.z - p.z) / d.z;  // min
+                side.z = mqi::ZP;
             }
         } else {
-            d.z     = 0;
+            d.z = 0;
             t_min.z = mqi::m_inf;
             t_max.z = mqi::p_inf;
         }
@@ -718,7 +645,7 @@ public:
             u_min = (t_min.x > t_min.z) ? t_min.x : t_min.z;
         } else {
             u_min = (t_min.y > t_min.z) ? t_min.y : t_min.z;
-        }   //u_min
+        }  // u_min
         ///< Find min value among T_max of x,y,z axis
         R u_max;
         if (t_max.x < t_max.y) {
@@ -733,21 +660,20 @@ public:
 #endif
         if ((u_min < u_max || std::abs(u_min - u_max) < mqi::geometry_tolerance) && u_min >= 0 &&
             u_max >= 0) {
-            its.dist          = u_min;
+            its.dist = u_min;
             mqi::vec3<R> p_on = p + d * its.dist;
-            its.cell          = this->index(p_on, d);
+            its.cell = this->index(p_on, d);
         } else {
             return its;
         }
         return its;
-    }   //< intersect : ray from outside
+    }  //< intersect : ray from outside
 
     CUDA_HOST_DEVICE
-    inline mqi::vec3<ijk_t>
-    index(const mqi::vec3<R>& p, mqi::vec3<R>& dir)   // if p is on boundary
-    {   //find index for the first intersection, return voxel index
+    inline mqi::vec3<ijk_t> index(const mqi::vec3<R>& p, mqi::vec3<R>& dir)  // if p is on boundary
+    {  // find index for the first intersection, return voxel index
         mqi::vec3<ijk_t> idx;
-        R                min_x = 100.0, min_y = 100.0, min_z = 100.0;
+        R min_x = 100.0, min_y = 100.0, min_z = 100.0;
         for (int ind = 0; ind < dim_.x; ind++) {
             if (mqi::mqi_abs(xe_[ind] - p.x) < mqi::geometry_tolerance) {
                 if (dir.x > 0) {
@@ -844,13 +770,12 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    inline void
-    index(mqi::vec3<R>& vtx1, mqi::vec3<R>& dir1, mqi::vec3<ijk_t>& idx) {
-        //find intersection for the rest of the intersection, retun voxel index
+    inline void index(mqi::vec3<R>& vtx1, mqi::vec3<R>& dir1, mqi::vec3<ijk_t>& idx) {
+        // find intersection for the rest of the intersection, retun voxel index
         /// Do we need to deal with exceptions? Like, p.x-xe_[idx.x]<dx which must not happend
 
         int flag_x = 0, flag_y = 0, flag_z = 0;
-        R   x_edge1, x_edge2;
+        R x_edge1, x_edge2;
         if (dir1.x < 0 &&
             (mqi::mqi_abs(vtx1.x - xe_[idx.x]) < mqi::geometry_tolerance || vtx1.x < xe_[idx.x])) {
             idx.x -= 1;
@@ -879,16 +804,17 @@ public:
     ///< check the index is valid.
     ///< this can be used to determine whether next index is out-of-grid
     CUDA_HOST_DEVICE
-    inline bool
-    is_valid(mqi::vec3<ijk_t>& c) {
-        if (c.x < 0 || c.y < 0 || c.z < 0) return false;
-        if (c.x >= dim_.x || c.y >= dim_.y || c.z >= dim_.z) return false;
+    inline bool is_valid(mqi::vec3<ijk_t>& c) {
+        if (c.x < 0 || c.y < 0 || c.z < 0)
+            return false;
+        if (c.x >= dim_.x || c.y >= dim_.y || c.z >= dim_.z)
+            return false;
         //            if (c.x > dim_.x || c.y > dim_.y || c.z > dim_.z) return false;
 
         return true;
     }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 
 #endif

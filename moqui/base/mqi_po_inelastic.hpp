@@ -3,8 +3,7 @@
 
 #include <moqui/base/mqi_interaction.hpp>
 //#include <cassert>
-namespace mqi
-{
+namespace mqi {
 
 ///< Cross-section from Geant4 Hard00, 0.1 MeV to 299.6 MeV with 0.5 MeV step
 ///< cm^2/g
@@ -68,17 +67,15 @@ CUDA_CONSTANT const float cs_po_i_g4_table[600] = {
     0.90534, 0.90534, 0.90534, 0.90534, 0.90567, 0.90567, 0.90567, 0.90567, 0.90567, 0.90567,
     0.90567, 0.90567, 0.90567, 0.90567, 0.90601, 0.90601, 0.90601, 0.90601, 0.90601, 0.90601,
     0.90601, 0.90601, 0.90601, 0.90601, 0.90634, 0.90634, 0.90634, 0.90634, 0.90634, 0.90634,
-    0.90634, 0.90634, 0.90634, 0.90634, 0.90668, 0.90668, 0.90668, 0.90668, 0.90668, 0.90668
-};
+    0.90634, 0.90634, 0.90634, 0.90634, 0.90668, 0.90668, 0.90668, 0.90668, 0.90668, 0.90668};
 ///< Proton-Oxygen inelastic interaction
-template<typename R>
-class po_inelastic : public interaction<R, mqi::PROTON>
-{
-public:
-    R E_bind;   ///MeV, binding energy, const R E_bind doesn't work with CUDA_SHARED. class heirachy
-    R E_mini;   ///MeV, minimum energy for PO inelastic
+template <typename R>
+class po_inelastic : public interaction<R, mqi::PROTON> {
+   public:
+    R E_bind;  /// MeV, binding energy, const R E_bind doesn't work with CUDA_SHARED. class heirachy
+    R E_mini;  /// MeV, minimum energy for PO inelastic
 
-public:
+   public:
     CUDA_HOST_DEVICE
     po_inelastic() {
         E_bind = 5.0;
@@ -86,13 +83,10 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    ~po_inelastic() {
-        ;
-    }
+    ~po_inelastic() { ; }
 
     CUDA_HOST_DEVICE
-    virtual R
-    cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
+    virtual R cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
         R cs = 0;
         if (rel.Ek > 7 && rel.Ek < 250) {
             cs = 1.64 * (rel.Ek - 7.9);
@@ -105,25 +99,20 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    virtual void
-    along_step(track_t<R>&       trk,
-               track_stack_t<R>& stk,
-               mqi_rng*          rng,
-               const R           len,
-               material_t<R>&    mat) {
+    virtual void along_step(track_t<R>& trk, track_stack_t<R>& stk, mqi_rng* rng, const R len,
+                            material_t<R>& mat) {
         ;
     }
 };
 
 ///< Proton-oxygen inelastic interaction based on tabulated data
-template<typename R>
-class po_inelastic_tabulated : public po_inelastic<R>
-{
-public:
+template <typename R>
+class po_inelastic_tabulated : public po_inelastic<R> {
+   public:
     const R* cs_table;
-    R        Ek_min;   //= 0.5   ;
-    R        Ek_max;   //= 300.0 ;
-    R        dEk;      //= 0.5   ;
+    R Ek_min;  //= 0.5   ;
+    R Ek_max;  //= 300.0 ;
+    R dEk;     //= 0.5   ;
 
     R E_bind;
     R E_ratio;
@@ -132,36 +121,33 @@ public:
     R Prob_long;
     R power;
 
-public:
+   public:
     CUDA_HOST_DEVICE
     po_inelastic_tabulated(R m, R M, R s, const R* p) : cs_table(p) {
-        Ek_min    = m;
-        Ek_max    = M;
-        dEk       = s;
-        E_bind    = 5.0;
-        E_mini    = 2.0;
-        E_ratio   = 0.65;
-        Prob_2nd  = 0.65;
-        power     = 0.44;
+        Ek_min = m;
+        Ek_max = M;
+        dEk = s;
+        E_bind = 5.0;
+        E_mini = 2.0;
+        E_ratio = 0.65;
+        Prob_2nd = 0.65;
+        power = 0.44;
         Prob_long = Prob_2nd + (1 - Prob_2nd) * 0.99;
     }
 
     CUDA_HOST_DEVICE
-    ~po_inelastic_tabulated() {
-        cs_table = nullptr;
-    }
+    ~po_inelastic_tabulated() { cs_table = nullptr; }
 
     CUDA_HOST_DEVICE
-    virtual R
-    cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
+    virtual R cross_section(const relativistic_quantities<R>& rel, const material_t<R>& mat) {
         R cs = 0;
 
         if (rel.Ek >= Ek_min && rel.Ek <= Ek_max) {
-            uint16_t idx0 = uint16_t((rel.Ek - Ek_min) / dEk);   //0 - 598
+            uint16_t idx0 = uint16_t((rel.Ek - Ek_min) / dEk);  // 0 - 598
             uint16_t idx1 = idx0 + 1;
-            R        x0   = Ek_min + idx0 * dEk;
-            R        x1   = x0 + 0.5;
-            cs            = mqi::intpl1d<R>(rel.Ek, x0, x1, cs_table[idx0], cs_table[idx1]);
+            R x0 = Ek_min + idx0 * dEk;
+            R x1 = x0 + 0.5;
+            cs = mqi::intpl1d<R>(rel.Ek, x0, x1, cs_table[idx0], cs_table[idx1]);
         }
         cs *= mat.rho_mass;
         return cs;
@@ -169,19 +155,14 @@ public:
 
     ///< Post-step method to update track's KE, pos, dir, dE, status
     CUDA_HOST_DEVICE
-    virtual void
-    post_step(track_t<R>&       trk,
-              track_stack_t<R>& stk,
-              mqi_rng*          rng,
-              const R           len,
-              material_t<R>&    mat,
-              bool              score_local_deposit) {
-        const R Ek     = trk.vtx1.ke;
-        R       Eb     = this->E_bind;   //Binding energy
-        R       Er     = Ek;             // Incident energy to calculate scattering angle
-        R       E_2nd  = 0;              // Total energy to secondary proton
-        R       E_long = 0;   // Energy loss to long range particle, e.g., leaving enerrgy
-        R     E_short = 0;   // Energy loss to short range particle & binding, e.g. locally absorbed
+    virtual void post_step(track_t<R>& trk, track_stack_t<R>& stk, mqi_rng* rng, const R len,
+                           material_t<R>& mat, bool score_local_deposit) {
+        const R Ek = trk.vtx1.ke;
+        R Eb = this->E_bind;  // Binding energy
+        R Er = Ek;            // Incident energy to calculate scattering angle
+        R E_2nd = 0;          // Total energy to secondary proton
+        R E_long = 0;         // Energy loss to long range particle, e.g., leaving enerrgy
+        R E_short = 0;  // Energy loss to short range particle & binding, e.g. locally absorbed
         float dE_total = 0;
         ///< dissipate all energy by looping
 
@@ -191,32 +172,33 @@ public:
         if (Ek <= 215 && Ek > 200) {
             Prob_2nd = 0.78;
             Prob_long =
-              Prob_2nd + (1 - Prob_2nd) * 0.9;   /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
+                Prob_2nd + (1 - Prob_2nd) * 0.9;  /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
             power = 0.4;
         } else if (Ek > 215) {
             Prob_2nd = 0.78;
             Prob_long =
-              Prob_2nd + (1 - Prob_2nd) * 1.0;   /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
+                Prob_2nd + (1 - Prob_2nd) * 1.0;  /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
             power = 0.4;
         } else if (Ek <= 200 && Ek > 150) {
             Prob_2nd = 0.72;
             Prob_long =
-              Prob_2nd + (1 - Prob_2nd) * 0.83;   /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
+                Prob_2nd + (1 - Prob_2nd) * 0.83;  /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
             power = 0.45;
         } else {
             Prob_2nd = 0.7;
             Prob_long =
-              Prob_2nd + (1 - Prob_2nd) * 0.83;   /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
+                Prob_2nd + (1 - Prob_2nd) * 0.83;  /// P_2nd < P < P_long, 0.93: moqui, 0.4: gpmc
             power = 0.52;
         }
         while ((Er - Eb) > this->E_mini) {
             Er -= Eb;
             ///< sample seconary energy
-            R u  = mqi::mqi_uniform<R>(rng);
+            R u = mqi::mqi_uniform<R>(rng);
             R dE = mqi::mqi_pow<R>(u, power) * (Er - this->E_mini) + this->E_mini;
             assert(dE >= 0);
-            if (dE >= Er) dE = Er;   //In case deposit energy is greater than E_remain
-            Er -= dE;                //substract deposit energy
+            if (dE >= Er)
+                dE = Er;  // In case deposit energy is greater than E_remain
+            Er -= dE;     // substract deposit energy
 
             ///< energy decrease secondary + binding
             assert(dE + Eb >= 0);
@@ -230,28 +212,30 @@ public:
                 /// 50% are secondary proton
                 ///< Fippel's paper, probablity of secondary proton is 0.5
                 R cos_th = (2.0 * dE / Ek - 1.0) + 2.0 * (1 - dE / Ek) * mqi::mqi_uniform<R>(rng);
-                if (cos_th < -1) cos_th = -1;
-                if (cos_th > 1) cos_th = 1;
-                R th  = mqi::mqi_acos<R>(cos_th);
+                if (cos_th < -1)
+                    cos_th = -1;
+                if (cos_th > 1)
+                    cos_th = 1;
+                R th = mqi::mqi_acos<R>(cos_th);
                 R phi = 2.0 * M_PI * mqi::mqi_uniform<R>(rng);
 
                 track_t<R> daughter(trk);
-                daughter.dE       = 0;
+                daughter.dE = 0;
                 daughter.local_dE = 0;
-                daughter.primary  = false;
-                daughter.process  = mqi::PO_I;
-                daughter.vtx0.ke  = dE;
-                daughter.vtx1.ke  = dE;
-                daughter.status   = CREATED;
+                daughter.primary = false;
+                daughter.process = mqi::PO_I;
+                daughter.vtx0.ke = dE;
+                daughter.vtx1.ke = dE;
+                daughter.status = CREATED;
                 daughter.update_post_vertex_direction(th, phi);
                 secondary_protons += 1;
 
                 daughter.vtx0.pos = trk.c_node->geo->rotation_matrix_fwd *
-                                      (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
+                                        (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
                                     trk.c_node->geo->translation_vector;
                 daughter.vtx0.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx1.dir;
                 daughter.vtx1.pos = trk.c_node->geo->rotation_matrix_fwd *
-                                      (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
+                                        (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
                                     trk.c_node->geo->translation_vector;
                 daughter.vtx1.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx1.dir;
                 stk.push_secondary(daughter);
@@ -266,29 +250,31 @@ public:
                 ///< locally deposited
 #ifdef __PHYSICS_DEBUG__
                 track_t<R> daughter(trk);
-                daughter.dE       = dE;
-                daughter.primary  = false;
-                daughter.process  = mqi::PO_I;
-                daughter.vtx0.ke  = dE;
-                daughter.vtx1.ke  = 0;
-                daughter.status   = CREATED;
+                daughter.dE = dE;
+                daughter.primary = false;
+                daughter.process = mqi::PO_I;
+                daughter.vtx0.ke = dE;
+                daughter.vtx1.ke = 0;
+                daughter.status = CREATED;
                 daughter.vtx0.pos = trk.c_node->geo->rotation_matrix_fwd *
-                                      (daughter.vtx0.pos - trk.c_node->geo->translation_vector) +
+                                        (daughter.vtx0.pos - trk.c_node->geo->translation_vector) +
                                     trk.c_node->geo->translation_vector;
                 daughter.vtx0.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx0.dir;
                 daughter.vtx1.pos = trk.c_node->geo->rotation_matrix_fwd *
-                                      (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
+                                        (daughter.vtx1.pos - trk.c_node->geo->translation_vector) +
                                     trk.c_node->geo->translation_vector;
                 daughter.vtx1.dir = trk.c_node->geo->rotation_matrix_fwd * daughter.vtx1.dir;
                 stk.push_secondary(daughter);
 #else
-                if (mat.rho_mass > 1.5e-4f) { trk.local_deposit(dE); }
+                if (mat.rho_mass > 1.5e-4f) {
+                    trk.local_deposit(dE);
+                }
 #endif
-                E_short += dE;   //E_short += Eb ;
+                E_short += dE;  // E_short += Eb ;
             }
             /// Deposit binding energy?
-            Eb *= E_ratio;   //binding energy changes, 0.7 is tuned value
-        }                    //while
+            Eb *= E_ratio;  // binding energy changes, 0.7 is tuned value
+        }                   // while
 
         ///< deposit remained energy if any
 
@@ -302,6 +288,6 @@ public:
     }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 
 #endif

@@ -1,64 +1,59 @@
 #ifndef MQI_SCORER_HPP
 #define MQI_SCORER_HPP
 
-#include <mutex>
-
 #include <moqui/base/mqi_common.hpp>
 #include <moqui/base/mqi_hash_table.hpp>
 #include <moqui/base/mqi_roi.hpp>
+#include <mutex>
 
-namespace mqi
-{
-typedef enum
-{
-    VIRTUAL           = 0,
+namespace mqi {
+typedef enum {
+    VIRTUAL = 0,
     ENERGY_DEPOSITION = 1,
-    DOSE              = 2,   // Dose
-    DOSE_Dij          = 3,   //Dose dij matrix
-    LETd              = 4,   //Dose weighted LET
-    LETt              = 5,   //Track weighted LET
-    TRACK_LENGTH      = 6    //Track length
+    DOSE = 2,         // Dose
+    DOSE_Dij = 3,     // Dose dij matrix
+    LETd = 4,         // Dose weighted LET
+    LETt = 5,         // Track weighted LET
+    TRACK_LENGTH = 6  // Track length
 } scorer_t;
 ///< Foward declerations
 
 // track_t
-template<typename R>
+template <typename R>
 class track_t;
 
 // grid3d
-template<typename T, typename R>
+template <typename T, typename R>
 class grid3d;
 
-template<typename R>
+template <typename R>
 using fp_compute_hit = double (*)(const track_t<R>&, const mqi::cnb_t&, grid3d<mqi::density_t, R>&);
 
 ///< Scorer
-template<typename R>
-class scorer
-{
-
-public:
+template <typename R>
+class scorer {
+   public:
     ///< Scorer name
-    const char* name_;   ///scorer name
+    const char* name_;  /// scorer name
 
     ///< Function pointer for a callback function
     const fp_compute_hit<R> compute_hit_;
 
     ///< Memory area for scorer data
-    mqi::key_value* data_             = nullptr;
-    uint32_t        max_capacity_     = 0;   //// Max capacity is 32-bit integer
-    uint32_t        current_capacity_ = 0;   //// Max capacity is 32-bit integer
+    mqi::key_value* data_ = nullptr;
+    uint32_t max_capacity_ = 0;      //// Max capacity is 32-bit integer
+    uint32_t current_capacity_ = 0;  //// Max capacity is 32-bit integer
 
-    scorer_t type_;   //< TODO: will be gone
+    scorer_t type_;  //< TODO: will be gone
 
     ///< Region of interest how to map transport pixel to scoring pixel
     roi_t* roi_;
 
     ///< Variance calculation
-    bool            score_variance_ = false;
-    mqi::key_value* count_          = nullptr;
-    mqi::key_value* mean_           = nullptr;
-    mqi::key_value* variance_       = nullptr;
+    bool score_variance_ = false;
+    mqi::key_value* count_ = nullptr;
+    mqi::key_value* mean_ = nullptr;
+    mqi::key_value* variance_ = nullptr;
 
 #if defined(__CUDACC__)
 
@@ -68,9 +63,11 @@ public:
 
     ///< Construct with size
     CUDA_HOST_DEVICE
-    scorer(const char* name, const uint32_t max_capacity, const fp_compute_hit<R> func_pointer) :
-        name_(name), max_capacity_(max_capacity), current_capacity_(max_capacity),
-        compute_hit_(func_pointer) {
+    scorer(const char* name, const uint32_t max_capacity, const fp_compute_hit<R> func_pointer)
+        : name_(name),
+          max_capacity_(max_capacity),
+          current_capacity_(max_capacity),
+          compute_hit_(func_pointer) {
         this->delete_data_if_used();
     }
 
@@ -80,16 +77,18 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    void
-    delete_data_if_used(void) {
-        if (data_ != nullptr) delete[] data_;
-        if (count_ != nullptr) delete[] count_;
-        if (mean_ != nullptr) delete[] mean_;
-        if (variance_ != nullptr) delete[] variance_;
+    void delete_data_if_used(void) {
+        if (data_ != nullptr)
+            delete[] data_;
+        if (count_ != nullptr)
+            delete[] count_;
+        if (mean_ != nullptr)
+            delete[] mean_;
+        if (variance_ != nullptr)
+            delete[] variance_;
     }
     CUDA_DEVICE
-    unsigned long long int
-    hash_fun(unsigned long long int k) {
+    unsigned long long int hash_fun(unsigned long long int k) {
         k ^= k >> 16;
         k *= 0x85ebca6b;
         k ^= k >> 13;
@@ -99,8 +98,7 @@ public:
     }
 
     CUDA_HOST_DEVICE
-    uint32_t
-    CAS(uint32_t* address, uint32_t compare, uint32_t val) {
+    uint32_t CAS(uint32_t* address, uint32_t compare, uint32_t val) {
         uint32_t old = *address;
         if (old == compare) {
             *address = val;
@@ -110,8 +108,8 @@ public:
     }
 
     CUDA_DEVICE
-    void
-    insert_pair(mqi::key_t key1, mqi::key_t key2, R value, unsigned long long int scorer_offset) {
+    void insert_pair(mqi::key_t key1, mqi::key_t key2, R value,
+                     unsigned long long int scorer_offset) {
         mqi::key_t slot;
         if (key2 == mqi::empty_pair) {
             slot = key1;
@@ -144,16 +142,14 @@ public:
 
     ///< process hit for Dij matrix?
     CUDA_DEVICE
-    virtual void
-    process_hit(const track_t<R>&          trk,
-                const int32_t&             cnb,
-                grid3d<mqi::density_t, R>& geo,
-                const uint32_t&            offset,
-                unsigned long long int     scorer_offset = 0) {
+    virtual void process_hit(const track_t<R>& trk, const int32_t& cnb,
+                             grid3d<mqi::density_t, R>& geo, const uint32_t& offset,
+                             unsigned long long int scorer_offset = 0) {
         // Calculate index to store hit
         // idx : -1 => a hit occured out of ROI. nothing to do.
         int32_t idx = roi_->idx(cnb);
-        if (idx == -1) return;
+        if (idx == -1)
+            return;
 
         ///< calculate quantity
         R quantity = (*this->compute_hit_)(trk, cnb, geo);
@@ -186,8 +182,7 @@ public:
     ///< clear data
     ///< note: reset data during simulation between runs should called differently
     CUDA_HOST
-    void
-    clear_data() {
+    void clear_data() {
         std::memset(data_, 0xff, sizeof(mqi::key_value) * this->max_capacity_);
         if (this->score_variance_) {
             std::memset(count_, 0xff, sizeof(mqi::key_value) * this->max_capacity_);
@@ -197,6 +192,6 @@ public:
     }
 };
 
-}   // namespace mqi
+}  // namespace mqi
 
 #endif
