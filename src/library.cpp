@@ -1,14 +1,19 @@
 #include "moqui_dcm_save/library.hpp"
 
-#include <iostream>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+
+// DICOM Constants
+constexpr size_t UID_BUFFER_SIZE = 100;
+constexpr uint16_t MAX_16_BIT_VALUE = 65535;
+constexpr double MIN_DOSE_SCALING = 1e-6;
 
 #if DCMTK_FOUND
 #include "dcmtk/config/osconfig.h"
-#include "dcmtk/dcmdata/dctk.h"
-#include "dcmtk/dcmdata/dcfilefo.h"
 #include "dcmtk/dcmdata/dcdeftag.h"
+#include "dcmtk/dcmdata/dcfilefo.h"
+#include "dcmtk/dcmdata/dctk.h"
 #include "dcmtk/ofstd/ofstd.h"
 #endif
 
@@ -16,11 +21,11 @@ void moqui_dcm_save::Library::hello() {
     std::cout << "Hello from Library!" << std::endl;
 }
 
-int moqui_dcm_save::Library::add(int first_value, int second_value) {
+auto moqui_dcm_save::Library::add(int first_value, int second_value) -> int {
     return first_value + second_value;
 }
 
-bool moqui_dcm_save::Library::is_dcmtk_available() {
+auto moqui_dcm_save::Library::is_dcmtk_available() -> bool {
 #if DCMTK_FOUND
     return true;
 #else
@@ -28,7 +33,7 @@ bool moqui_dcm_save::Library::is_dcmtk_available() {
 #endif
 }
 
-std::string moqui_dcm_save::Library::get_dicom_version() {
+auto moqui_dcm_save::Library::get_dicom_version() -> std::string {
 #if DCMTK_FOUND
     return "DCMTK " + std::to_string(PACKAGE_VERSION_NUMBER);
 #else
@@ -36,12 +41,11 @@ std::string moqui_dcm_save::Library::get_dicom_version() {
 #endif
 }
 
-bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose_data,
+auto moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose_data,
                                                  const std::vector<uint32_t>& dimensions,
-                                                 double scale,
-                                                 const std::string& output_path,
-                                                 const DicomInfo& dcm_info,
-                                                 bool two_cm_mode) {
+                                                 double scale, const std::string& output_path,
+                                                 const DicomInfo& dcm_info, bool two_cm_mode)
+    -> bool {
 #if DCMTK_FOUND
     try {
         // Validate inputs
@@ -69,7 +73,8 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
         // Create meta information
         DcmMetaInfo* meta_info = dcm_file.getMetaInfo();
         meta_info->putAndInsertString(DCM_MediaStorageSOPClassUID, UID_RTDoseStorage);
-        meta_info->putAndInsertString(DCM_TransferSyntaxUID, UID_LittleEndianExplicitTransferSyntax);
+        meta_info->putAndInsertString(DCM_TransferSyntaxUID,
+                                      UID_LittleEndianExplicitTransferSyntax);
         meta_info->putAndInsertString(DCM_ImplementationClassUID, "1.2.276.0.7230010.3.0.3.6.1");
         meta_info->putAndInsertString(DCM_ImplementationVersionName, "MOQUI_DCM_SAVE_1.0");
         meta_info->putAndInsertString(DCM_SourceApplicationEntityTitle, "MOQUI_DCM_SAVE");
@@ -78,8 +83,8 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
         dataset->putAndInsertString(DCM_SOPClassUID, UID_RTDoseStorage);
 
         // Generate unique identifiers
-        char sop_instance_uid[100];
-        char series_instance_uid[100];
+        char sop_instance_uid[UID_BUFFER_SIZE];
+        char series_instance_uid[UID_BUFFER_SIZE];
         dcmGenerateUniqueIdentifier(sop_instance_uid, SITE_INSTANCE_UID_ROOT);
         dcmGenerateUniqueIdentifier(series_instance_uid, SITE_INSTANCE_UID_ROOT);
 
@@ -108,11 +113,13 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
                         plan_dataset->findAndGetOFString(DCM_PatientBirthDate, patient_birth_date);
                         plan_dataset->findAndGetOFString(DCM_PatientSex, patient_sex);
                         plan_dataset->findAndGetOFString(DCM_StudyInstanceUID, study_instance_uid);
-                        plan_dataset->findAndGetOFString(DCM_SeriesInstanceUID, series_instance_uid_plan);
+                        plan_dataset->findAndGetOFString(DCM_SeriesInstanceUID,
+                                                         series_instance_uid_plan);
                         plan_dataset->findAndGetOFString(DCM_AccessionNumber, accession_number);
                         plan_dataset->findAndGetOFString(DCM_StudyDate, study_date);
                         plan_dataset->findAndGetOFString(DCM_StudyTime, study_time);
-                        plan_dataset->findAndGetOFString(DCM_FrameOfReferenceUID, frame_of_reference_uid);
+                        plan_dataset->findAndGetOFString(DCM_FrameOfReferenceUID,
+                                                         frame_of_reference_uid);
 
                         // Copy metadata to dose file
                         if (!patient_name.empty()) {
@@ -122,16 +129,19 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
                             dataset->putAndInsertString(DCM_PatientID, patient_id.c_str());
                         }
                         if (!patient_birth_date.empty()) {
-                            dataset->putAndInsertString(DCM_PatientBirthDate, patient_birth_date.c_str());
+                            dataset->putAndInsertString(DCM_PatientBirthDate,
+                                                        patient_birth_date.c_str());
                         }
                         if (!patient_sex.empty()) {
                             dataset->putAndInsertString(DCM_PatientSex, patient_sex.c_str());
                         }
                         if (!study_instance_uid.empty()) {
-                            dataset->putAndInsertString(DCM_StudyInstanceUID, study_instance_uid.c_str());
+                            dataset->putAndInsertString(DCM_StudyInstanceUID,
+                                                        study_instance_uid.c_str());
                         }
                         if (!accession_number.empty()) {
-                            dataset->putAndInsertString(DCM_AccessionNumber, accession_number.c_str());
+                            dataset->putAndInsertString(DCM_AccessionNumber,
+                                                        accession_number.c_str());
                         }
                         if (!study_date.empty()) {
                             dataset->putAndInsertString(DCM_StudyDate, study_date.c_str());
@@ -140,14 +150,17 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
                             dataset->putAndInsertString(DCM_StudyTime, study_time.c_str());
                         }
                         if (!frame_of_reference_uid.empty()) {
-                            dataset->putAndInsertString(DCM_FrameOfReferenceUID, frame_of_reference_uid.c_str());
+                            dataset->putAndInsertString(DCM_FrameOfReferenceUID,
+                                                        frame_of_reference_uid.c_str());
                         }
 
                         plan_read_success = true;
-                        std::cout << "Successfully read metadata from RTPLAN file: " << dcm_info.plan_name << std::endl;
+                        std::cout << "Successfully read metadata from RTPLAN file: "
+                                  << dcm_info.plan_name << std::endl;
                     }
                 } else {
-                    std::cerr << "Warning: Could not read RTPLAN file: " << dcm_info.plan_name << std::endl;
+                    std::cerr << "Warning: Could not read RTPLAN file: " << dcm_info.plan_name
+                              << std::endl;
                 }
             } catch (const std::exception& e) {
                 std::cerr << "Warning: Error reading RTPLAN file: " << e.what() << std::endl;
@@ -180,9 +193,9 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
             }
         }
 
-        double dose_grid_scaling = (max_dose * scale) / 65535.0;
+        double dose_grid_scaling = (max_dose * scale) / MAX_16_BIT_VALUE;
         if (dose_grid_scaling <= 0.0) {
-            dose_grid_scaling = 1e-6; // Minimum scaling to avoid zero
+            dose_grid_scaling = MIN_DOSE_SCALING;  // Minimum scaling to avoid zero
         }
 
         dataset->putAndInsertFloat64(DCM_DoseGridScaling, dose_grid_scaling);
@@ -215,7 +228,8 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
             std::cout << "Successfully saved DICOM RT Dose file: " << full_output_path << std::endl;
             std::cout << "  Dose grid scaling: " << dose_grid_scaling << std::endl;
             std::cout << "  Maximum dose: " << max_dose * scale << " Gy" << std::endl;
-            std::cout << "  TwoCentimeterMode: " << (two_cm_mode ? "enabled" : "disabled") << std::endl;
+            std::cout << "  TwoCentimeterMode: " << (two_cm_mode ? "enabled" : "disabled")
+                      << std::endl;
             return true;
         } else {
             std::cerr << "Error: Failed to save DICOM file: " << status.text() << std::endl;
@@ -243,7 +257,8 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
 
     mhd_file << "ObjectType = Image\n";
     mhd_file << "NDims = 3\n";
-    mhd_file << "DimSize = " << dimensions[0] << " " << dimensions[1] << " " << dimensions[2] << "\n";
+    mhd_file << "DimSize = " << dimensions[0] << " " << dimensions[1] << " " << dimensions[2]
+             << "\n";
     mhd_file << "ElementType = MET_DOUBLE\n";
     mhd_file << "ElementSpacing = 1.0 1.0 1.0\n";
     mhd_file << "ElementByteOrderMSB = False\n";
@@ -265,7 +280,8 @@ bool moqui_dcm_save::Library::save_dose_as_dicom(const std::vector<double>& dose
         scaled_data[i] = dose_data[i] * scale;
     }
 
-    raw_file.write(reinterpret_cast<const char*>(scaled_data.data()), total_length * sizeof(double));
+    raw_file.write(reinterpret_cast<const char*>(scaled_data.data()),
+                   total_length * sizeof(double));
     raw_file.close();
 
     std::cout << "Successfully saved MHD file: " << full_mhd_path << std::endl;
