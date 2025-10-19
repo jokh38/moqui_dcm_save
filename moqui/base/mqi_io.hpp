@@ -14,6 +14,7 @@
 #include <moqui/base/mqi_roi.hpp>
 #include <moqui/base/mqi_scorer.hpp>
 #include <moqui/base/mqi_sparse_io.hpp>
+#include <moqui/base/mqi_dataset.hpp>
 #include <numeric>  //accumulate
 #include <valarray>
 
@@ -26,6 +27,8 @@
 #include <dcmtk/ofstd/ofcond.h>
 #include <dcmtk/ofstd/ofstd.h>
 #include <dcmtk/ofstd/ofstring.h>
+
+#include <gdcmReader.h>
 
 namespace mqi {
 namespace io {
@@ -68,9 +71,239 @@ void save_to_mha(const mqi::node_t<R>* children, const double* src, const R scal
                  const std::string& filepath, const std::string& filename, const uint32_t length);
 
 template <typename R>
-void save_to_dcm(const mqi::node_t<R>* children, const double* src, const R scale,
-                 const std::string& filepath, const std::string& filename, const uint32_t length,
-                 bool twoCentimeterMode = false);
+template <typename R>
+void mqi::io::save_to_dcm(const mqi::node_t<R>* children, const double* src, const R scale,
+                          const std::string& filepath, const std::string& filename,
+                          const uint32_t length, const mqi::dicom_t& dcm_info, bool two_cm_mode) {
+#if DCMTK_FOUND
+    // Enhanced DICOM RT Dose file creation with proper RTPLAN integration
+
+    // Calculate voxel dimensions from geometry
+    float dx = children->geo[0].get_x_edges()[1] - children->geo[0].get_x_edges()[0];
+    float dy = children->geo[0].get_y_edges()[1] - children->geo[0].get_y_edges()[0];
+    float dz = children->geo[0].get_z_edges()[1] - children->geo[0].get_z_edges()[0];
+
+    // Calculate image position (origin) - center of first voxel
+    float x0 = children->geo[0].get_x_edges()[0] + dx * 0.5;
+    float y0 = children->geo[0].get_y_edges()[0] + dy * 0.5;
+    float z0 = children->geo[0].get_z_edges()[0] + dz * 0.5;
+
+    // Get dimensions from geometry
+    uint32_t nx = children->geo[0].get_nxyz().x;
+    uint32_t ny = children->geo[0].get_nxyz().y;
+    uint32_t nz = children->geo[0].get_nxyz().z;
+
+    // For 2D mode (two_cm_mode), we only save the scoring slice at 2cm depth
+    if (two_cm_mode) {
+        nz = 1;  // Only one slice for 2D dose
+        // Adjust z0 to be at the 2cm depth position
+        z0 = 20.0;  // 2cm in mm (DICOM uses mm units)
+    }
+
+    // Create a copy of data and apply scale
+    std::valarray<double> dose_data(src, length);
+    dose_data *= scale;
+
+    // Read RTPLAN file for metadata integration
+    DcmFileFormat plan_ff;
+    OFString patient_name, patient_id, study_instance_uid, series_instance_uid;
+    OFString frame_of_reference_uid, beam_name, rt_plan_label;
+
+    if (!dcm_info.plan_name.empty()) {
+        OFCondition status = plan_ff.loadFile(dcm_info.plan_name.c_str());
+        if (status.good()) {
+            DcmDataset *plan_dataset = plan_ff.getDataset();
+
+            // Extract patient and study information with improved error handling
+            if (plan_dataset->findAndGetOFString(DCM_PatientName, patient_name).bad()) {
+                std::cerr << "Warning: DCM_PatientName not found in source RTPLAN." << std::endl;
+                patient_name = "MOQUI_PATIENT";
+            }
+            if (plan_dataset->findAndGetOFString(DCM_PatientID, patient_id).bad()) {
+                std::cerr << "Warning: DCM_PatientID not found in source RTPLAN." << std::endl;
+                patient_id = "MOQUI_001";
+            }
+            if (plan_dataset->findAndGetOFString(DCM_StudyInstanceUID, study_instance_uid).bad()) {
+                std::cerr << "Error: Mandatory tag DCM_StudyInstanceUID not found in source RTPLAN. Cannot create valid RTDOSE." << std::endl;
+                return;
+            }
+            if (plan_dataset->findAndGetOFString(DCM_SeriesInstanceUID, series_instance_uid).bad()) {
+                std::cerr << "Warning: DCM_SeriesInstanceUID not found in source RTPLAN." << std::endl;
+                series_instance_uid = "";
+            }
+            if (plan_dataset->findAndGetOFString(DCM_FrameOfReferenceUID, frame_of_reference_uid).bad()) {
+                std::cerr << "Warning: DCM_FrameOfReferenceUID not found in source RTPLAN." << std::endl;
+                frame_of_reference_uid = "";
+            }
+            if (plan_dataset->findAndGetOFString(DCM_RTPlanLabel, rt_plan_label).bad()) {
+                std::cerr << "Warning: DCM_RTPlanLabel not found in source RTPLAN." << std::endl;
+                rt_plan_label = "MOQUI_PLAN";
+            }
+
+            // Try to get beam information
+            const gdcm::Reader reader;
+            reader.SetFileName(dcm_info.plan_name.c_str());
+            if (reader.Read()) {
+                mqi::dataset plan_ds(reader.GetFile().GetDataSet(), true);
+                auto beam_seq = plan_ds("BeamSequence");
+                if (beam_seq.size() > 0) {
+                    std::vector<std::string> beam_names;
+                    beam_seq[0]->get_values("BeamName", beam_names);
+                    if (!beam_names.empty()) {
+                        beam_name = beam_names[0].c_str();
+                    }
+                }
+            }
+        } else {
+            std::cerr << "Warning: Could not read RTPLAN file: " << dcm_info.plan_name << ". Using default values." << std::endl;
+            patient_name = "MOQUI_PATIENT";
+            patient_id = "MOQUI_001";
+            study_instance_uid = "1.2.3.4.5.6.7.8.9.0";
+            rt_plan_label = "MOQUI_PLAN";
+        }
+    } else {
+        std::cerr << "Warning: No RTPLAN file provided. Using default values." << std::endl;
+        patient_name = "MOQUI_PATIENT";
+        patient_id = "MOQUI_001";
+        study_instance_uid = "1.2.3.4.5.6.7.8.9.0";
+        rt_plan_label = "MOQUI_PLAN";
+    }
+
+    // Create DICOM file format
+    DcmFileFormat fileformat;
+    DcmDataset* dataset = fileformat.getDataset();
+
+    // Generate unique UIDs for the RTDOSE file
+    char sop_instance_uid[100];
+    char series_instance_uid_new[100];
+    dcmGenerateUniqueIdentifier(sop_instance_uid, SITE_INSTANCE_UID_ROOT);
+    dcmGenerateUniqueIdentifier(series_instance_uid_new, SITE_INSTANCE_UID_ROOT);
+
+    // Basic DICOM attributes
+    dataset->putAndInsertString(DCM_SOPClassUID, UID_RTDoseStorage);
+    dataset->putAndInsertString(DCM_SOPInstanceUID, sop_instance_uid);
+    dataset->putAndInsertString(DCM_PatientName, patient_name.c_str());
+    dataset->putAndInsertString(DCM_PatientID, patient_id.c_str());
+    dataset->putAndInsertString(DCM_StudyInstanceUID, study_instance_uid.c_str());
+    dataset->putAndInsertString(DCM_SeriesInstanceUID, series_instance_uid_new);
+    dataset->putAndInsertString(DCM_Modality, "RTDOSE");
+    dataset->putAndInsertString(DCM_Manufacturer, "Moqui Monte Carlo");
+
+    // Study and series information
+    dataset->putAndInsertString(DCM_StudyDate, "20240101");  // TODO: Use actual date
+    dataset->putAndInsertString(DCM_SeriesDate, "20240101");  // TODO: Use actual date
+    dataset->putAndInsertString(DCM_RTDoseComment, "Generated by Moqui Monte Carlo Simulation");
+
+    // Frame of Reference
+    if (!frame_of_reference_uid.empty()) {
+        dataset->putAndInsertString(DCM_FrameOfReferenceUID, frame_of_reference_uid.c_str());
+    }
+
+    // Image information
+    dataset->putAndInsertUint16(DCM_Columns, nx);
+    dataset->putAndInsertUint16(DCM_Rows, ny);
+    dataset->putAndInsertUint16(DCM_NumberOfFrames, nz);
+
+    // Pixel spacing (in mm)
+    char pixelSpacing[64];
+    snprintf(pixelSpacing, sizeof(pixelSpacing), "%.6f\\%.6f", dx, dy);
+    dataset->putAndInsertString(DCM_PixelSpacing, pixelSpacing);
+
+    // Slice thickness (in mm)
+    char sliceThickness[32];
+    snprintf(sliceThickness, sizeof(sliceThickness), "%.6f", dz);
+    dataset->putAndInsertString(DCM_SliceThickness, sliceThickness);
+
+    // Image position and orientation
+    char imagePosition[128];
+    snprintf(imagePosition, sizeof(imagePosition), "%.6f\\%.6f\\%.6f", x0, y0, z0);
+    dataset->putAndInsertString(DCM_ImagePositionPatient, imagePosition);
+
+    // Image orientation (patient) - standard axial orientation
+    dataset->putAndInsertString(DCM_ImageOrientationPatient, "1\\0\\0\\0\\1\\0");
+
+    // Dose units and scaling
+    dataset->putAndInsertString(DCM_DoseUnits, "GY");
+    dataset->putAndInsertString(DCM_DoseType, "PHYSICAL");
+    dataset->putAndInsertString(DCM_DoseSummationType, "PLAN");
+
+    // Referenced RT Plan sequence
+    if (!dcm_info.plan_name.empty()) {
+        DcmItem *referenced_rt_plan_item = nullptr;
+        if (dataset->findAndGetSequenceItem(DCM_ReferencedRTPlanSequence, referenced_rt_plan_item, 0).good()) {
+            referenced_rt_plan_item->putAndInsertString(DCM_ReferencedSOPClassUID, UID_RTPlanStorage);
+            // Generate a reference SOP Instance UID based on the plan
+            char referenced_sop_instance_uid[100];
+            snprintf(referenced_sop_instance_uid, sizeof(referenced_sop_instance_uid), "%s.%s",
+                     study_instance_uid.c_str(), "1");
+            referenced_rt_plan_item->putAndInsertString(DCM_ReferencedSOPInstanceUID, referenced_sop_instance_uid);
+            referenced_rt_plan_item->putAndInsertString(DCM_RTPlanLabel, rt_plan_label.c_str());
+        }
+    }
+
+    // Enhanced dose grid scaling as per documentation
+    double max_dose = 0.0;
+    for (uint32_t i = 0; i < length; ++i) {
+        if (dose_data[i] > max_dose) {
+            max_dose = dose_data[i];
+        }
+    }
+
+    double dose_grid_scaling = 0.0;
+    if (max_dose > 0.0) {
+        dose_grid_scaling = max_dose / 65535.0;  // Scale to 16-bit range as per DICOM standard
+    } else {
+        dose_grid_scaling = 1.0;  // Default scaling if no dose
+    }
+
+    dataset->putAndInsertFloat64(DCM_DoseGridScaling, dose_grid_scaling);
+
+    // Pixel data - convert to 16-bit integer format
+    std::vector<uint16_t> pixel_data(length);
+    for (uint32_t i = 0; i < length; ++i) {
+        pixel_data[i] = static_cast<uint16_t>(dose_data[i] / dose_grid_scaling);
+    }
+
+    // Set pixel data attributes
+    dataset->putAndInsertUint16(DCM_BitsAllocated, 16);
+    dataset->putAndInsertUint16(DCM_BitsStored, 16);
+    dataset->putAndInsertUint16(DCM_HighBit, 15);
+    dataset->putAndInsertUint16(DCM_PixelRepresentation, 0);  // Unsigned integer
+    dataset->putAndInsertUint16(DCM_SamplesPerPixel, 1);
+    dataset->putAndInsertString(DCM_PhotometricInterpretation, "MONOCHROME2");
+
+    // Insert pixel data
+    OFCondition cond = dataset->putAndInsertUint16Array(DCM_PixelData, pixel_data.data(), length);
+
+    if (cond.bad()) {
+        std::cerr << "Error: Could not insert pixel data: " << cond.text() << std::endl;
+        return;
+    }
+
+    // Save the DICOM file
+    OFString filename_dcm = (filepath + "/" + filename + ".dcm").c_str();
+    cond = fileformat.saveFile(filename_dcm, EXS_LittleEndianExplicit);
+
+    if (cond.bad()) {
+        std::cerr << "Error: Could not save DICOM file: " << cond.text() << std::endl;
+    } else {
+        std::cout << "Successfully saved DICOM RT Dose file: " << filename_dcm << std::endl;
+        std::cout << "  Patient: " << patient_name << " (ID: " << patient_id << ")" << std::endl;
+        std::cout << "  Study UID: " << study_instance_uid << std::endl;
+        std::cout << "  Dose grid scaling: " << std::scientific << std::setprecision(6) << dose_grid_scaling << " Gy/uint" << std::endl;
+        std::cout << "  Maximum dose: " << std::fixed << std::setprecision(3) << max_dose << " Gy" << std::endl;
+        if (two_cm_mode) {
+            std::cout << "  Mode: 2D dose (TwoCentimeterMode) - 1 frame at 2cm depth" << std::endl;
+        } else {
+            std::cout << "  Mode: 3D dose - " << nz << " frames" << std::endl;
+        }
+    }
+#else
+    // Fallback: save as MHD format when DCMTK is not available
+    std::cerr << "Warning: DCMTK library not found. Saving dose data as MHD format instead." << std::endl;
+    mqi::io::save_to_mhd(children, src, scale, filepath, filename, length);
+#endif
+};
 }  // namespace io
 }  // namespace mqi
 
