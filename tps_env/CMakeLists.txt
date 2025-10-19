@@ -41,6 +41,16 @@ endif()
 find_package(GDCM REQUIRED)
 include(${GDCM_USE_FILE})
 
+# Find DCMTK for enhanced DICOM support
+find_package(DCMTK)
+if(DCMTK_FOUND)
+  message(STATUS "DCMTK found - enhanced DICOM support enabled")
+  add_compile_definitions(DCMTK_FOUND=1)
+else()
+  message(WARNING "DCMTK not found - basic DICOM support only")
+  add_compile_definitions(DCMTK_FOUND=0)
+endif()
+
 if(APPLE)
   find_library(COREFOUNDATION_LIBRARY CoreFoundation)
 endif()
@@ -79,4 +89,10 @@ else()
             gdcmMSFF
             gdcmjpeg16
             z)
+endif()
+
+# Link DCMTK libraries if available
+if(DCMTK_FOUND)
+  target_link_libraries(tps_env PRIVATE ${DCMTK_LIBRARIES})
+  target_include_directories(tps_env PRIVATE ${DCMTK_INCLUDE_DIRS})
 endif()

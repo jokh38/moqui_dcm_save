@@ -22,6 +22,32 @@ endif()
 # Dependencies
 include(FetchContent)
 
+# Find DCMTK (required for DICOM functionality)
+find_package(DCMTK)
+if(DCMTK_FOUND)
+  message(STATUS "DCMTK found - DICOM support enabled in moqui library")
+  add_compile_definitions(DCMTK_FOUND=1)
+
+  # Find GDCM for additional DICOM functionality
+  find_package(GDCM QUIET)
+  if(GDCM_FOUND)
+    message(
+      STATUS
+        "GDCM found - additional DICOM functionality enabled in moqui library")
+    add_compile_definitions(GDCM_FOUND=1)
+  else()
+    message(
+      WARNING
+        "GDCM not found - some DICOM features may be limited in moqui library")
+    add_compile_definitions(GDCM_FOUND=0)
+  endif()
+else()
+  message(WARNING "DCMTK not found - DICOM support disabled in moqui library"
+                  ", falling back to MHD format")
+  add_compile_definitions(DCMTK_FOUND=0)
+  add_compile_definitions(GDCM_FOUND=0)
+endif()
+
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz)
@@ -42,6 +68,18 @@ target_include_directories(
 # Add Moqui-specific headers
 target_include_directories(moqui_dcm_save_lib
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../moqui/base)
+
+# Link DCMTK libraries if available
+if(DCMTK_FOUND)
+  target_link_libraries(moqui_dcm_save_lib PUBLIC ${DCMTK_LIBRARIES})
+  target_include_directories(moqui_dcm_save_lib PUBLIC ${DCMTK_INCLUDE_DIRS})
+
+  # Link GDCM if available
+  if(GDCM_FOUND)
+    target_link_libraries(moqui_dcm_save_lib PUBLIC ${GDCM_LIBRARIES})
+    target_include_directories(moqui_dcm_save_lib PUBLIC ${GDCM_INCLUDE_DIRS})
+  endif()
+endif()
 
 # Executable
 add_executable(moqui_dcm_save src/main.cpp)

@@ -39,5 +39,5 @@ ParticlesPerHistory 0.001
 ScoreToCTGrid true
 
 OutputDir ../data/Output/spotplan
-OutputFormat raw
+OutputFormat dcm
 OverwriteResults true
