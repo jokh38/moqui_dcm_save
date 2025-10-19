@@ -1,0 +1,48 @@
+# Example input file for 2D dose calculation with TwoCentimeterMode
+# This configuration enables 2D dose DICOM output at 2cm depth
+
+# Global Parameters
+GPUID 0
+RandomSeed 12345
+TotalThreads 8
+
+# Data Directories
+ParentDir ./data
+DicomDir ./dicom
+OutputDir ./output
+UseAbsolutePath false
+
+# TwoCentimeterMode Configuration
+twoCentimeterMode true
+UsingPhantomGeo true
+PhantomDimX 200
+PhantomDimY 200
+PhantomDimZ 200
+PhantomUnitX 1
+PhantomUnitY 1
+PhantomUnitZ 1
+PhantomPositionX 0
+PhantomPositionY 0
+PhantomPositionZ 0
+
+# Beam Configuration
+GantryNum 2
+BeamPrefix beam
+
+# Source Parameters
+SourceType FluenceMap
+SimulationType perBeam
+ParticlesPerHistory 1.0e6
+
+# Scorer Parameters
+Scorer EnergyDeposition
+SupressStd false
+ScoreToCTGrid true
+ScoringMask false
+
+# Output Parameters
+OutputFormat dcm
+OverwriteResults true
+
+# Additional Parameters
+MaxHistoriesPerBatch 1000000

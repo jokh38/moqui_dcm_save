@@ -17,6 +17,16 @@
 #include <numeric>  //accumulate
 #include <valarray>
 
+// DCMTK includes for DICOM support
+#include <dcmtk/config/osconfig.h>
+#include <dcmtk/dcmdata/dcdeftag.h>
+#include <dcmtk/dcmdata/dcfilefo.h>
+#include <dcmtk/dcmdata/dctk.h>
+#include <dcmtk/dcmimgle/dcmimage.h>
+#include <dcmtk/ofstd/ofcond.h>
+#include <dcmtk/ofstd/ofstd.h>
+#include <dcmtk/ofstd/ofstring.h>
+
 namespace mqi {
 namespace io {
 ///<  save scorer data to a file in binary format
@@ -56,6 +66,11 @@ void save_to_mhd(const mqi::node_t<R>* children, const double* src, const R scal
 template <typename R>
 void save_to_mha(const mqi::node_t<R>* children, const double* src, const R scale,
                  const std::string& filepath, const std::string& filename, const uint32_t length);
+
+template <typename R>
+void save_to_dcm(const mqi::node_t<R>* children, const double* src, const R scale,
+                 const std::string& filepath, const std::string& filename, const uint32_t length,
+                 bool twoCentimeterMode = false);
 }  // namespace io
 }  // namespace mqi
 
@@ -534,6 +549,143 @@ void mqi::io::save_to_mha(const mqi::node_t<R>* children, const double* src, con
     if (!fid_header.good()) {
         std::cout << "Error occurred at writing time!" << std::endl;
     }
+}
+
+template <typename R>
+void mqi::io::save_to_dcm(const mqi::node_t<R>* children, const double* src, const R scale,
+                          const std::string& filepath, const std::string& filename,
+                          const uint32_t length, bool twoCentimeterMode) {
+    ///< Implementation of DICOM RT Dose file saving using DCMTK
+    ///< Supports both 2D (TwoCentimeterMode) and 3D dose distributions
+
+    // Calculate voxel dimensions from geometry
+    float dx = children->geo[0].get_x_edges()[1] - children->geo[0].get_x_edges()[0];
+    float dy = children->geo[0].get_y_edges()[1] - children->geo[0].get_y_edges()[0];
+    float dz = children->geo[0].get_z_edges()[1] - children->geo[0].get_z_edges()[0];
+
+    // Calculate image position (origin) - center of first voxel
+    float x0 = children->geo[0].get_x_edges()[0] + dx * 0.5;
+    float y0 = children->geo[0].get_y_edges()[0] + dy * 0.5;
+    float z0 = children->geo[0].get_z_edges()[0] + dz * 0.5;
+
+    // Get dimensions from geometry
+    uint32_t nx = children->geo[0].get_nxyz().x;
+    uint32_t ny = children->geo[0].get_nxyz().y;
+    uint32_t nz = children->geo[0].get_nxyz().z;
+
+    // For 2D mode (TwoCentimeterMode), we only save the scoring slice at 2cm depth
+    if (twoCentimeterMode) {
+        nz = 1;  // Only one slice for 2D dose
+        // Adjust z0 to be at the 2cm depth position
+        z0 = 20.0;  // 2cm in mm (DICOM uses mm units)
+    }
+
+    // Create a copy of data and apply scale
+    std::valarray<double> dose_data(src, length);
+    dose_data *= scale;
+
+    // Create DICOM file format
+    DcmFileFormat fileformat;
+    DcmDataset* dataset = fileformat.getDataset();
+
+    // Basic DICOM attributes
+    dataset->putAndInsertString(DCM_SOPClassUID, UID_RTDOSEStorage);
+    dataset->putAndInsertString(DCM_SOPInstanceUID,
+                                "1.2.3.4.5.6.7.8.9.0.1");  // TODO: Generate unique UID
+    dataset->putAndInsertString(DCM_PatientName, "MOQUI_PATIENT");
+    dataset->putAndInsertString(DCM_PatientID, "MOQUI_001");
+    dataset->putAndInsertString(DCM_Modality, "RTDOSE");
+    dataset->putAndInsertString(DCM_Manufacturer, "Moqui Monte Carlo");
+
+    // Image information
+    dataset->putAndInsertUint16(DCM_Columns, nx);
+    dataset->putAndInsertUint16(DCM_Rows, ny);
+    dataset->putAndInsertUint16(DCM_NumberOfFrames, nz);
+
+    // Pixel spacing (in mm)
+    char pixelSpacing[64];
+    snprintf(pixelSpacing, sizeof(pixelSpacing), "%.6f\%.6f", dx, dy);
+    dataset->putAndInsertString(DCM_PixelSpacing, pixelSpacing);
+
+    // Slice thickness (in mm)
+    char sliceThickness[32];
+    snprintf(sliceThickness, sizeof(sliceThickness), "%.6f", dz);
+    dataset->putAndInsertString(DCM_SliceThickness, sliceThickness);
+
+    // Image position and orientation
+    char imagePosition[128];
+    if (twoCentimeterMode) {
+        snprintf(imagePosition, sizeof(imagePosition), "%.6f\%.6f\%.6f", x0, y0, z0);
+    } else {
+        snprintf(imagePosition, sizeof(imagePosition), "%.6f\%.6f\%.6f", x0, y0, z0);
+    }
+    dataset->putAndInsertString(DCM_ImagePositionPatient, imagePosition);
+
+    // Image orientation (patient) - standard axial orientation
+    dataset->putAndInsertString(DCM_ImageOrientationPatient, "1\0\0\0\1\0");
+
+    // Dose units and scaling
+    dataset->putAndInsertString(DCM_DoseUnits, "GY");
+    dataset->putAndInsertString(DCM_DoseType, "PHYSICAL");
+    dataset->putAndInsertString(DCM_DoseSummationType, "PLAN");
+
+    // Dose scaling
+    double doseGridScaling = 1.0;  // Apply appropriate scaling factor
+    dataset->putAndInsertFloat64(DCM_DoseGridScaling, doseGridScaling);
+
+    // Pixel data
+    Uint16* pixelData = new Uint16[nx * ny * nz];
+
+    // Convert dose data to 16-bit integer format
+    double maxDose = 0.0;
+    for (size_t i = 0; i < dose_data.size(); ++i) {
+        if (dose_data[i] > maxDose) {
+            maxDose = dose_data[i];
+        }
+    }
+
+    // Scale to 16-bit range
+    if (maxDose > 0.0) {
+        double scaleFactor = 65535.0 / maxDose;
+        for (size_t i = 0; i < dose_data.size(); ++i) {
+            pixelData[i] = static_cast<Uint16>(dose_data[i] * scaleFactor);
+        }
+    }
+
+    // Set pixel data attributes
+    dataset->putAndInsertUint16(DCM_BitsAllocated, 16);
+    dataset->putAndInsertUint16(DCM_BitsStored, 16);
+    dataset->putAndInsertUint16(DCM_HighBit, 15);
+    dataset->putAndInsertUint16(DCM_PixelRepresentation, 0);  // Unsigned integer
+    dataset->putAndInsertUint16(DCM_SamplesPerPixel, 1);
+    dataset->putAndInsertString(DCM_PhotometricInterpretation, "MONOCHROME2");
+
+    // Insert pixel data
+    OFCondition cond = dataset->putAndInsertUint16Array(DCM_PixelData, pixelData, nx * ny * nz);
+
+    if (cond.bad()) {
+        std::cout << "Error: Could not insert pixel data: " << cond.text() << std::endl;
+        delete[] pixelData;
+        return;
+    }
+
+    // Save the DICOM file
+    OFString filename_dcm = (filepath + "/" + filename + ".dcm").c_str();
+    cond = fileformat.saveFile(filename_dcm, EXS_LittleEndianExplicit);
+
+    if (cond.bad()) {
+        std::cout << "Error: Could not save DICOM file: " << cond.text() << std::endl;
+    } else {
+        std::cout << "Successfully saved DICOM file: " << filename_dcm << std::endl;
+        if (twoCentimeterMode) {
+            std::cout << "Mode: 2D dose (TwoCentimeterMode) - 1 frame at 2cm depth" << std::endl;
+        } else {
+            std::cout << "Mode: 3D dose - " << nz << " frames" << std::endl;
+        }
+    }
+
+    // Clean up
+    delete[] pixelData;
 }
 
 #endif
