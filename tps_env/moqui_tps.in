@@ -1,4 +1,4 @@
-GPUID 0
+GPUID 3
 RandomSeed -1932780356
 UseAbsolutePath false
 TotalThreads -1 #(Integer, use negative value for using optimized number of threads)
