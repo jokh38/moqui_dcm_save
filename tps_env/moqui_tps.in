@@ -1,11 +1,11 @@
-GPUID 3
+GPUID 0
 RandomSeed -1932780356
 UseAbsolutePath false
 TotalThreads -1 #(Integer, use negative value for using optimized number of threads)
-MaxHistoriesPerBatch 10000000
+MaxHistoriesPerBatch 1000000
 Verbosity 0
 
-ParentDir ../data/CSV/spotplan
+ParentDir ../../data/CSV/spotplan
 DicomDir plan
 logFilePath log
 
@@ -38,6 +38,6 @@ ParticlesPerHistory 0.001
 ## Not implemented yet
 ScoreToCTGrid true
 
-OutputDir ../data/Output/spotplan
+OutputDir ../../data/Output/spotplan
 OutputFormat dcm
 OverwriteResults true

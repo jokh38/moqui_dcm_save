@@ -105,8 +105,11 @@ void mqi::io::save_to_dcm(const mqi::node_t<R>* children, const double* src, con
     // For 2D mode (two_cm_mode), we only save the scoring slice at 2cm depth
     if (two_cm_mode) {
         nz = 1;  // Only one slice for 2D dose
-        // Adjust z0 to be at the 2cm depth position
-        z0 = 20.0;  // 2cm in mm (DICOM uses mm units)
+        // Calculate water surface position (positive Z edge of phantom)
+        float water_surface_z = children->geo[0].get_z_edges()[0] +
+                                (children->geo[0].get_nxyz().z * dz);
+        // Adjust z0 to be at the 2cm depth position (2cm below water surface)
+        z0 = water_surface_z - 20.0;  // 2cm in mm below water surface
     }
 
     // Create a copy of data and apply scale
