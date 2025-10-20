@@ -876,8 +876,8 @@ class tps_env : public x_environment<R> {
         if (this->usingPhantomGeo) {
             if (this->twoCentimeterMode) {
                 this->phantomDimX = 400;
-                this->phantomDimY = 1;
-                this->phantomDimZ = 400;
+                this->phantomDimY = 400;
+                this->phantomDimZ = 3;
                 this->phantomUnitX = 1.f;
                 this->phantomUnitY = 2.f;
                 this->phantomUnitZ = 1.f;
@@ -978,7 +978,7 @@ class tps_env : public x_environment<R> {
         ///< create a child
         std::cout << "Creating child in world geometry.. : Phantom size -->" << std::endl;
         if (this->twoCentimeterMode)
-            std::cout << "(x, y, z) -> (400, 400, 2)" << std::endl;
+            std::cout << "(x, y, z) -> (400, 400, 3)" << std::endl;
         else
             std::cout << "(x, y, z) -> (" << this->dcm_.dim_.x << ", " << this->dcm_.dim_.y << ", "
                       << this->dcm_.dim_.z << ")" << std::endl;
@@ -1025,11 +1025,12 @@ class tps_env : public x_environment<R> {
                 frontPhantom->geo->set_data(rho_mass_parent1);
 
                 this->world->children[beamline_geometries.size() + 2] = phantom;
-                phantom->geo = new grid3d<density_t, R>(-200, 200, 401, -200, 200, 401, -1, 1, 2,
+                phantom->geo = new grid3d<density_t, R>(-200, 200, 401, -200, 200, 401, -1, 1, 4,
                                                         transformPhantom.rotation);
 
-                density_t* rho_mass = new density_t[400 * 400 * 1];
-                for (int i = 0; i < 400 * 400 * 1; i++) {
+                density_t* rho_mass =
+                    new density_t[400 * 400 * 3];  // 400x400x3 voxels for middle phantom
+                for (int i = 0; i < 400 * 400 * 3; i++) {
                     rho_mass[i] = mqi::h2o_t<R>().rho_mass;  // Water
                 }
                 phantom->geo->set_data(rho_mass);
@@ -1040,7 +1041,7 @@ class tps_env : public x_environment<R> {
                                                             -1, 2, transformPhantom.rotation);
 
                 density_t* rho_mass_parent2 = new density_t[400 * 400 * 189];
-                for (int i = 0; i < 400 * 400 * 1; i++) {
+                for (int i = 0; i < 400 * 400 * 189; i++) {
                     rho_mass_parent2[i] = mqi::h2o_t<R>().rho_mass;  // Water
                 }
                 backPhantom->geo->set_data(rho_mass_parent2);
@@ -1059,7 +1060,16 @@ class tps_env : public x_environment<R> {
         }
 
         // Mask reading
-        mqi::mask_reader mask_reader0(this->dcm_.dim_);
+        // Use appropriate dimensions for mask reader based on mode
+        mqi::vec3<int> mask_dim;
+        if (this->twoCentimeterMode) {
+            // For twoCentimeterMode, use the actual phantom geometry dimensions
+            mask_dim = {this->phantomDimX, this->phantomDimY, this->phantomDimZ};
+        } else {
+            // For normal mode, use DICOM dimensions
+            mask_dim = this->dcm_.dim_;
+        }
+        mqi::mask_reader mask_reader0(mask_dim);
         roi_t* roi_tmp;
         if (scoring_mask) {
             mask_reader0.mask_filenames = mask_filenames;
@@ -1069,8 +1079,16 @@ class tps_env : public x_environment<R> {
             mask_reader0.set_mask(this->dcm_.body_contour);
             roi_tmp = mask_reader0.mask_to_roi();
         } else {
-            roi_tmp =
-                new roi_t(mqi::DIRECT, this->dcm_.dim_.x * this->dcm_.dim_.y * this->dcm_.dim_.z);
+            // Use appropriate dimensions for ROI based on mode
+            size_t roi_size;
+            if (this->twoCentimeterMode) {
+                // For twoCentimeterMode, use the actual phantom geometry dimensions (400x400x2)
+                roi_size = this->phantomDimX * this->phantomDimY * this->phantomDimZ;
+            } else {
+                // For normal mode, use DICOM dimensions
+                roi_size = this->dcm_.dim_.x * this->dcm_.dim_.y * this->dcm_.dim_.z;
+            }
+            roi_tmp = new roi_t(mqi::DIRECT, roi_size);
         }
         if (this->scorer_type == mqi::LETd || this->scorer_type == mqi::LETt) {
             phantom->n_scorers = 2;  // need two scorers for LET scoring
@@ -1087,9 +1105,16 @@ class tps_env : public x_environment<R> {
 #else
         fp0 = mqi::dose_to_water;
 #endif
-        phantom->scorers[0] =
-            new mqi::scorer<R>(this->scorer_string.c_str(),
-                               this->dcm_.dim_.x * this->dcm_.dim_.y * this->dcm_.dim_.z, fp0);
+        // Use appropriate dimensions for scorer based on mode
+        size_t scorer_size;
+        if (this->twoCentimeterMode) {
+            // For twoCentimeterMode, use the actual phantom geometry dimensions (400x400x2)
+            scorer_size = this->phantomDimX * this->phantomDimY * this->phantomDimZ;
+        } else {
+            // For normal mode, use DICOM dimensions
+            scorer_size = this->dcm_.dim_.x * this->dcm_.dim_.y * this->dcm_.dim_.z;
+        }
+        phantom->scorers[0] = new mqi::scorer<R>(this->scorer_string.c_str(), scorer_size, fp0);
 
         mqi::key_value* deposit0 = new mqi::key_value[phantom->scorers[0]->max_capacity_];
 
@@ -1600,7 +1625,6 @@ class tps_env : public x_environment<R> {
         }
     }
 
-    CUDA_HOST
     double* reshape_data(int c_ind, int s_ind, mqi::vec3<ijk_t> dim) {
         //        R* reshaped_data = new R[dim.x * dim.y * dim.z];
         double* reshaped_data = new double[dim.x * dim.y * dim.z];
@@ -1618,6 +1642,37 @@ class tps_env : public x_environment<R> {
                     this->world->children[c_ind]->scorers[s_ind]->data_[ind].value;
             }
         }
+
+        // DEBUG: Count non-zero voxels and total dose
+        int non_zero_count = 0;
+        double total_dose = 0.0;
+        double max_dose = 0.0;
+        for (int i = 0; i < dim.x * dim.y * dim.z; i++) {
+            if (reshaped_data[i] > 0) {
+                non_zero_count++;
+                total_dose += reshaped_data[i];
+                if (reshaped_data[i] > max_dose) {
+                    max_dose = reshaped_data[i];
+                }
+            }
+        }
+
+        std::cout << "====== DOSE DATA DEBUG ======" << std::endl;
+        std::cout << "Child index: " << c_ind << ", Scorer index: " << s_ind << std::endl;
+        std::cout << "Dimensions: " << dim.x << "x" << dim.y << "x" << dim.z << " voxels"
+                  << std::endl;
+        std::cout << "Total voxels: " << (dim.x * dim.y * dim.z) << std::endl;
+        std::cout << "Non-zero voxels: " << non_zero_count << " ("
+                  << (100.0 * non_zero_count / (dim.x * dim.y * dim.z)) << "%)" << std::endl;
+        std::cout << "Total dose: " << std::scientific << total_dose << std::endl;
+        std::cout << "Maximum dose: " << std::scientific << max_dose << std::endl;
+        std::cout << "Scorer capacity: "
+                  << this->world->children[c_ind]->scorers[s_ind]->max_capacity_ << std::endl;
+        std::cout << "Particles per history: " << this->particles_per_history << std::endl;
+        std::cout << "TwoCentimeterMode: " << (this->twoCentimeterMode ? "true" : "false")
+                  << std::endl;
+        std::cout << "===========================" << std::endl;
+
         return reshaped_data;
     }
 
@@ -1645,9 +1700,9 @@ class tps_env : public x_environment<R> {
                                             this->particles_per_history, this->output_path,
                                             filename, vol_size);
                 } else if (!this->output_format.compare("dcm")) {
-                    mqi::io::save_to_dcm<R>(this->world->children[c_ind], reshaped_data,
-                                            this->particles_per_history, this->output_path,
-                                            filename, vol_size, this->dcm_, this->twoCentimeterMode);
+                    mqi::io::save_to_dcm<R>(
+                        this->world->children[c_ind], reshaped_data, this->particles_per_history,
+                        this->output_path, filename, vol_size, this->dcm_, this->twoCentimeterMode);
                 } else {
                     mqi::io::save_to_bin<double>(reshaped_data, this->particles_per_history,
                                                  this->output_path, filename, vol_size);
