@@ -106,8 +106,8 @@ void mqi::io::save_to_dcm(const mqi::node_t<R>* children, const double* src, con
     if (two_cm_mode) {
         nz = 1;  // Only one slice for 2D dose
         // Calculate water surface position (positive Z edge of phantom)
-        float water_surface_z = children->geo[0].get_z_edges()[0] +
-                                (children->geo[0].get_nxyz().z * dz);
+        float water_surface_z =
+            children->geo[0].get_z_edges()[0] + (children->geo[0].get_nxyz().z * dz);
         // Adjust z0 to be at the 2cm depth position (2cm below water surface)
         z0 = water_surface_z - 20.0;  // 2cm in mm below water surface
     }
@@ -272,11 +272,13 @@ void mqi::io::save_to_dcm(const mqi::node_t<R>* children, const double* src, con
         }
     }
 
-    double dose_grid_scaling = 0.0;
-    if (max_dose > 0.0) {
-        dose_grid_scaling = max_dose / 65535.0;  // Scale to 16-bit range as per DICOM standard
-    } else {
-        dose_grid_scaling = 1.0;  // Default scaling if no dose
+    double dose_grid_scaling = max_dose / 65535.0;  // Scale to 16-bit range as per DICOM standard
+
+    // Ensure minimum scaling factor to prevent zero values in DICOM
+    if (dose_grid_scaling < 1e-8) {
+        dose_grid_scaling = 1e-6;  // Fixed scaling factor that works with DICOM DS format
+        std::cout << "Warning: Very low dose detected. Using scaling factor: " << dose_grid_scaling
+                  << " Gy/uint" << std::endl;
     }
 
     dataset->putAndInsertFloat64(DCM_DoseGridScaling, dose_grid_scaling);
